@@ -42,7 +42,7 @@ Vertex AI on GKE works best with Workload Identity and short-lived Google access
 - no tool-calling compatibility layer yet
 - embeddings intentionally fail the entire request if any item fails
 
-See [architecture](/Users/rexxa/github/vertex-openai-proxy/.worktrees/reference-proxy-v1/docs/architecture.md), [compatibility](/Users/rexxa/github/vertex-openai-proxy/.worktrees/reference-proxy-v1/docs/compatibility.md), [troubleshooting](/Users/rexxa/github/vertex-openai-proxy/.worktrees/reference-proxy-v1/docs/troubleshooting.md), and [roadmap](/Users/rexxa/github/vertex-openai-proxy/.worktrees/reference-proxy-v1/docs/roadmap.md) for details.
+See [architecture](docs/architecture.md), [compatibility](docs/compatibility.md), [troubleshooting](docs/troubleshooting.md), and [roadmap](docs/roadmap.md) for details.
 
 ## Environment Variables
 
@@ -141,17 +141,17 @@ This service is meant to run on GKE with a Kubernetes service account mapped to 
 
 ## Examples
 
-- [curl chat example](/Users/rexxa/github/vertex-openai-proxy/.worktrees/reference-proxy-v1/examples/curl/chat.sh)
-- [curl embeddings example](/Users/rexxa/github/vertex-openai-proxy/.worktrees/reference-proxy-v1/examples/curl/embeddings.sh)
-- [Python chat example](/Users/rexxa/github/vertex-openai-proxy/.worktrees/reference-proxy-v1/examples/python/chat.py)
+- [curl chat example](examples/curl/chat.sh)
+- [curl embeddings example](examples/curl/embeddings.sh)
+- [Python chat example](examples/python/chat.py)
 
 ## Harness
 
-The repository includes a proxy-native verification harness under [`.vertex-proxy`](/Users/rexxa/github/vertex-openai-proxy/.worktrees/reference-proxy-v1/.vertex-proxy) and [`harness/`](/Users/rexxa/github/vertex-openai-proxy/.worktrees/reference-proxy-v1/harness).
+The repository includes a proxy-native verification harness under [`.vertex-proxy`](.vertex-proxy) and [`harness/`](harness).
 
 Primary entrypoints:
 - `bash scripts/verify_quick.sh`
 - `bash scripts/verify_full.sh`
 - `bash scripts/verify_cross.sh`
 
-See [harness documentation](/Users/rexxa/github/vertex-openai-proxy/.worktrees/reference-proxy-v1/docs/harness.md) and [release expectations](/Users/rexxa/github/vertex-openai-proxy/.worktrees/reference-proxy-v1/docs/release.md).
+See [harness documentation](docs/harness.md) and [release expectations](docs/release.md).
