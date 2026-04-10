@@ -14,14 +14,14 @@ from app.services.vertex_embeddings import _embed_one, create_embedding_response
 @pytest.mark.asyncio
 @patch("app.services.vertex_embeddings._embed_one")
 async def test_embedding_response_preserves_input_order(mock_embed_one) -> None:
-    async def fake_embed(text: str, model: str) -> list[float]:
+    async def fake_embed(text: str, model: str) -> tuple[list[float], int]:
         if text == "first":
             await asyncio.sleep(0.02)
-            return [1.0]
+            return [1.0], 0
         if text == "second":
             await asyncio.sleep(0.0)
-            return [2.0]
-        return [3.0]
+            return [2.0], 0
+        return [3.0], 0
 
     mock_embed_one.side_effect = fake_embed
 
@@ -40,10 +40,10 @@ async def test_embedding_response_preserves_input_order(mock_embed_one) -> None:
 @pytest.mark.asyncio
 @patch("app.services.vertex_embeddings._embed_one")
 async def test_embedding_batch_failure_aborts_entire_response(mock_embed_one) -> None:
-    async def fake_embed(text: str, model: str) -> list[float]:
+    async def fake_embed(text: str, model: str) -> tuple[list[float], int]:
         if text == "broken":
             raise VertexUpstreamError(status_code=502, message="upstream failed")
-        return [1.0]
+        return [1.0], 0
 
     mock_embed_one.side_effect = fake_embed
 

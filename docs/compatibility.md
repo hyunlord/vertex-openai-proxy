@@ -46,8 +46,15 @@ Contract guarantees:
 - one output vector per input item
 - preserved input order
 - explicit indices in response data
+- one upstream embedding call per input item
+- bounded fan-out concurrency using proxy-side limits
 - whole-request failure if any item fails
 - malformed upstream embedding payloads return normalized `502`
+
+Retry behavior:
+- embeddings retry only on retry-safe upstream statuses
+- non-stream chat retries only on retry-safe upstream statuses
+- stream chat does not retry once streaming has started
 
 ## Errors
 

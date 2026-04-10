@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     vertex_chat_model: str = "google/gemini-2.5-flash"
     vertex_embedding_model: str = "gemini-embedding-2-preview"
     request_timeout_seconds: float = 60.0
+    embedding_max_concurrency: int = 4
+    embedding_max_inputs_per_request: int = 64
+    embedding_retry_attempts: int = 1
+    embedding_retry_backoff_ms: int = 200
+    chat_retry_attempts: int = 1
+    chat_retry_backoff_ms: int = 200
     vertex_access_token: str | None = None
 
 

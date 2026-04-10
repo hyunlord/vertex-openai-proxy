@@ -17,6 +17,13 @@ class VertexUpstreamError(Exception):
         self.response_text = response_text
 
 
+RETRYABLE_UPSTREAM_STATUSES = frozenset({429, 500, 502, 503, 504})
+
+
+def is_retryable_upstream_error(exc: VertexUpstreamError) -> bool:
+    return exc.status_code in RETRYABLE_UPSTREAM_STATUSES
+
+
 def _extract_upstream_message(response: httpx.Response) -> str:
     try:
         payload = response.json()

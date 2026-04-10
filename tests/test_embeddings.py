@@ -1,8 +1,14 @@
+import asyncio
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
+from app.config import settings
 from app.main import app
+from app.schemas.openai_embeddings import EmbeddingRequest
+from app.services.http_client import VertexUpstreamError
+from app.services.vertex_embeddings import create_embedding_response
 
 
 client = TestClient(app)
@@ -11,7 +17,7 @@ AUTH = {"Authorization": "Bearer change-me"}
 
 @patch("app.services.vertex_embeddings._embed_one", new_callable=AsyncMock)
 def test_embeddings_batch(mock_embed: AsyncMock) -> None:
-    mock_embed.side_effect = [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]
+    mock_embed.side_effect = [([0.1, 0.2], 0), ([0.3, 0.4], 0), ([0.5, 0.6], 0)]
     response = client.post(
         "/v1/embeddings",
         headers=AUTH,
@@ -25,7 +31,7 @@ def test_embeddings_batch(mock_embed: AsyncMock) -> None:
 
 @patch("app.services.vertex_embeddings._embed_one", new_callable=AsyncMock)
 def test_embeddings_single_string(mock_embed: AsyncMock) -> None:
-    mock_embed.return_value = [0.1, 0.2]
+    mock_embed.return_value = ([0.1, 0.2], 0)
     response = client.post(
         "/v1/embeddings",
         headers=AUTH,
@@ -48,3 +54,88 @@ def test_embeddings_reject_non_string_inputs() -> None:
     assert response.status_code == 422
     payload = response.json()
     assert payload["error"]["type"] == "invalid_request_error"
+
+
+def test_embeddings_reject_too_many_inputs(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "embedding_max_inputs_per_request", 2)
+
+    response = client.post(
+        "/v1/embeddings",
+        headers=AUTH,
+        json={"model": "gemini-embedding-2-preview", "input": ["a", "b", "c"]},
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["error"]["type"] == "invalid_request_error"
+    assert "maximum" in payload["error"]["message"].lower()
+
+
+@patch("app.services.vertex_embeddings._embed_one", new_callable=AsyncMock)
+def test_embeddings_bound_fanout_concurrency(mock_embed: AsyncMock, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "embedding_max_concurrency", 2)
+
+    state = {"in_flight": 0, "max_seen": 0}
+
+    async def fake_embed(text: str, model: str) -> tuple[list[float], int]:
+        state["in_flight"] += 1
+        state["max_seen"] = max(state["max_seen"], state["in_flight"])
+        await asyncio.sleep(0.01)
+        state["in_flight"] -= 1
+        return [float(ord(text))], 0
+
+    mock_embed.side_effect = fake_embed
+
+    response = client.post(
+        "/v1/embeddings",
+        headers=AUTH,
+        json={"model": "gemini-embedding-2-preview", "input": ["a", "b", "c", "d"]},
+    )
+
+    assert response.status_code == 200
+    assert state["max_seen"] <= 2
+
+
+@pytest.mark.asyncio
+@patch("app.services.vertex_embeddings.vertex_json_request", new_callable=AsyncMock)
+async def test_embeddings_retry_transient_429_once(
+    mock_vertex_json_request: AsyncMock,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "embedding_retry_attempts", 1)
+    monkeypatch.setattr(settings, "embedding_retry_backoff_ms", 0)
+
+    mock_vertex_json_request.side_effect = [
+        VertexUpstreamError(status_code=429, message="rate limited"),
+        {"embedding": {"values": [0.1, 0.2]}},
+    ]
+
+    response = await create_embedding_response(
+        EmbeddingRequest(model="gemini-embedding-2-preview", input="alpha")
+    )
+
+    assert len(response["data"]) == 1
+    assert mock_vertex_json_request.await_count == 2
+
+
+@pytest.mark.asyncio
+@patch("app.services.vertex_embeddings.vertex_json_request", new_callable=AsyncMock)
+async def test_embeddings_fail_after_retry_budget_exhausted(
+    mock_vertex_json_request: AsyncMock,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "embedding_retry_attempts", 1)
+    monkeypatch.setattr(settings, "embedding_retry_backoff_ms", 0)
+
+    mock_vertex_json_request.side_effect = [
+        VertexUpstreamError(status_code=503, message="temporary unavailable"),
+        VertexUpstreamError(status_code=503, message="temporary unavailable"),
+    ]
+
+    with pytest.raises(VertexUpstreamError) as exc_info:
+        await create_embedding_response(
+            EmbeddingRequest(model="gemini-embedding-2-preview", input="alpha")
+        )
+
+    assert exc_info.value.status_code == 503
+    assert mock_vertex_json_request.await_count == 2

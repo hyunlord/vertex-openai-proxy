@@ -7,7 +7,9 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.schemas.openai_chat import ChatCompletionRequest
+from app.services.http_client import VertexUpstreamError
 from app.services.vertex_chat import create_chat_completion
+from app.config import settings
 
 
 client = TestClient(app)
@@ -96,3 +98,62 @@ def test_chat_completion_rejects_malformed_messages() -> None:
     assert response.status_code == 422
     payload = response.json()
     assert payload["error"]["type"] == "invalid_request_error"
+
+
+@pytest.mark.asyncio
+@patch("app.services.vertex_chat.vertex_json_request", new_callable=AsyncMock)
+async def test_chat_completion_retries_non_stream_transient_429(
+    mock_vertex_json_request: AsyncMock,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "chat_retry_attempts", 1)
+    monkeypatch.setattr(settings, "chat_retry_backoff_ms", 0)
+
+    mock_vertex_json_request.side_effect = [
+        VertexUpstreamError(status_code=429, message="rate limited"),
+        {
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "ok"},
+                    "finish_reason": "stop",
+                }
+            ]
+        },
+    ]
+
+    response = await create_chat_completion(
+        ChatCompletionRequest(
+            model="google/gemini-2.5-flash",
+            messages=[{"role": "user", "content": "hello"}],
+        )
+    )
+
+    assert response["choices"][0]["message"]["content"] == "ok"
+    assert mock_vertex_json_request.await_count == 2
+
+
+@pytest.mark.asyncio
+@patch("app.services.vertex_chat.vertex_json_request", new_callable=AsyncMock)
+async def test_chat_completion_fails_after_retry_budget_exhausted(
+    mock_vertex_json_request: AsyncMock,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "chat_retry_attempts", 1)
+    monkeypatch.setattr(settings, "chat_retry_backoff_ms", 0)
+
+    mock_vertex_json_request.side_effect = [
+        VertexUpstreamError(status_code=503, message="temporary unavailable"),
+        VertexUpstreamError(status_code=503, message="temporary unavailable"),
+    ]
+
+    with pytest.raises(VertexUpstreamError) as exc_info:
+        await create_chat_completion(
+            ChatCompletionRequest(
+                model="google/gemini-2.5-flash",
+                messages=[{"role": "user", "content": "hello"}],
+            )
+        )
+
+    assert exc_info.value.status_code == 503
+    assert mock_vertex_json_request.await_count == 2
