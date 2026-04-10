@@ -57,24 +57,23 @@ def main() -> None:
         )
     chat_payload = chat.json() if chat.status_code == 200 else {}
 
-    print(
-        json.dumps(
-            {
-                "ok": (
-                    health.status_code == 200
-                    and models.status_code == 200
-                    and isinstance(chat_model, str)
-                    and chat.status_code == 200
-                    and chat_payload.get("choices", [{}])[0].get("message", {}).get("content")
-                    == "READY"
-                ),
-                "health_status": health.status_code,
-                "models_status": models.status_code,
-                "chat_status": chat.status_code,
-                "chat_model": chat_model,
-            }
-        )
-    )
+    result = {
+        "ok": (
+            health.status_code == 200
+            and models.status_code == 200
+            and isinstance(chat_model, str)
+            and chat.status_code == 200
+            and chat_payload.get("choices", [{}])[0].get("message", {}).get("content")
+            == "READY"
+        ),
+        "health_status": health.status_code,
+        "models_status": models.status_code,
+        "chat_status": chat.status_code,
+        "chat_model": chat_model,
+    }
+    print(json.dumps(result))
+    if not result["ok"]:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
