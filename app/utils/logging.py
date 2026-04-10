@@ -30,3 +30,15 @@ def log_event(event: str, **fields: Any) -> None:
             **fields,
         },
     )
+
+
+def log_exception(event: str, *, exc: Exception, **fields: Any) -> None:
+    logger.exception(
+        event,
+        extra={
+            "event": event,
+            "request_id": get_request_id(),
+            **fields,
+        },
+        exc_info=exc,
+    )
