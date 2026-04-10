@@ -46,6 +46,12 @@ See [architecture](docs/architecture.md), [compatibility](docs/compatibility.md)
 
 ## Environment Variables
 
+Start by copying the example file:
+
+```bash
+cp .env.example .env
+```
+
 - `INTERNAL_BEARER_TOKEN`: Shared secret used by the client when calling this proxy
 - `VERTEX_PROJECT_ID`: Google Cloud project ID
 - `VERTEX_CHAT_LOCATION`: Chat endpoint location such as `global`
@@ -82,6 +88,7 @@ pip install -r requirements.txt
 
 2. Export configuration:
 ```bash
+cp .env.example .env
 export INTERNAL_BEARER_TOKEN=change-me
 export VERTEX_PROJECT_ID=your-gcp-project-id
 export VERTEX_CHAT_LOCATION=global
