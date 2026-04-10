@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import urllib.error
 import urllib.request
 
@@ -22,6 +21,18 @@ def _call(base_url: str, token: str, path: str, payload: dict | None = None) -> 
             "status": response.status,
             "body": response.read().decode(),
         }
+
+
+def _select_model(models_payload: dict, capability_kind: str, explicit_model: str | None) -> str:
+    if explicit_model:
+        return explicit_model
+    for model in models_payload.get("data", []):
+        capabilities = model.get("capabilities", [])
+        if any(capability.get("kind") == capability_kind for capability in capabilities):
+            model_id = model.get("id")
+            if isinstance(model_id, str):
+                return model_id
+    raise ValueError(f"no model found for capability={capability_kind}")
 
 
 def main() -> None:
@@ -48,12 +59,19 @@ def main() -> None:
     try:
         health = _call(base_url, token, "/health")
         models = _call(base_url, token, "/v1/models")
+        models_body = json.loads(models["body"])
+        chat_model = _select_model(models_body, "chat", os.getenv("CHAT_MODEL"))
+        embedding_model = _select_model(
+            models_body,
+            "embedding",
+            os.getenv("EMBEDDING_MODEL"),
+        )
         chat = _call(
             base_url,
             token,
             "/v1/chat/completions",
             {
-                "model": "google/gemini-2.5-flash",
+                "model": chat_model,
                 "messages": [{"role": "user", "content": "reply with READY only"}],
             },
         )
@@ -62,7 +80,7 @@ def main() -> None:
             token,
             "/v1/embeddings",
             {
-                "model": "gemini-embedding-2-preview",
+                "model": embedding_model,
                 "input": ["alpha", "beta", "gamma"],
             },
         )
@@ -78,6 +96,8 @@ def main() -> None:
             "models_status": models["status"],
             "chat_status": chat["status"],
             "embeddings_status": embeddings["status"],
+            "chat_model": chat_model,
+            "embedding_model": embedding_model,
         }
     except urllib.error.HTTPError as exc:
         results = {

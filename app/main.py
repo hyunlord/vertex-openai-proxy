@@ -13,7 +13,7 @@ from app.routes.chat import router as chat_router
 from app.routes.embeddings import router as embeddings_router
 from app.routes.health import router as health_router
 from app.routes.models import router as models_router
-from app.utils.logging import reset_request_id, set_request_id
+from app.utils.logging import log_exception, reset_request_id, set_request_id
 from app.utils.request_id import generate_request_id
 
 
@@ -82,9 +82,15 @@ async def validation_exception_handler(
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    log_exception(
+        "unhandled_exception",
+        exc=exc,
+        endpoint=str(request.url.path),
+        method=request.method,
+    )
     return openai_error_response(
         status_code=500,
-        message=str(exc),
+        message="Internal server error",
         request_id=extract_request_id(request),
     )
 

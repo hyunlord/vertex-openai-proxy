@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.routes import chat as chat_route
 
 
 client = TestClient(app)
@@ -47,3 +48,26 @@ def test_success_response_has_request_id_header() -> None:
 
     assert response.status_code == 200
     assert "x-request-id" in response.headers
+
+
+def test_generic_errors_return_safe_message(monkeypatch) -> None:
+    error_client = TestClient(app, raise_server_exceptions=False)
+
+    async def raise_runtime_error(*args, **kwargs):
+        raise RuntimeError("sensitive internal details")
+
+    monkeypatch.setattr(chat_route, "create_chat_completion", raise_runtime_error)
+
+    response = error_client.post(
+        "/v1/chat/completions",
+        headers={"Authorization": "Bearer change-me"},
+        json={
+            "model": "google/gemini-2.5-flash",
+            "messages": [{"role": "user", "content": "hello"}],
+        },
+    )
+
+    assert response.status_code == 500
+    payload = response.json()
+    assert payload["error"]["message"] == "Internal server error"
+    assert payload["error"]["type"] == "server_error"
