@@ -45,23 +45,22 @@ def main() -> None:
         )
     embeddings_payload = embeddings.json() if embeddings.status_code == 200 else {}
 
-    print(
-        json.dumps(
-            {
-                "ok": (
-                    health.status_code == 200
-                    and models.status_code == 200
-                    and isinstance(embedding_model, str)
-                    and embeddings.status_code == 200
-                    and len(embeddings_payload.get("data", [])) == 3
-                ),
-                "health_status": health.status_code,
-                "models_status": models.status_code,
-                "embeddings_status": embeddings.status_code,
-                "embedding_model": embedding_model,
-            }
-        )
-    )
+    result = {
+        "ok": (
+            health.status_code == 200
+            and models.status_code == 200
+            and isinstance(embedding_model, str)
+            and embeddings.status_code == 200
+            and len(embeddings_payload.get("data", [])) == 3
+        ),
+        "health_status": health.status_code,
+        "models_status": models.status_code,
+        "embeddings_status": embeddings.status_code,
+        "embedding_model": embedding_model,
+    }
+    print(json.dumps(result))
+    if not result["ok"]:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
