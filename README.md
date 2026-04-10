@@ -44,6 +44,19 @@ Vertex AI on GKE works best with Workload Identity and short-lived Google access
 
 See [architecture](docs/architecture.md), [compatibility](docs/compatibility.md), [troubleshooting](docs/troubleshooting.md), and [roadmap](docs/roadmap.md) for details.
 
+## Runtime Policy
+
+This proxy prefers correctness over speculative batching.
+
+- embeddings always normalize list input into one upstream call per input item
+- embeddings preserve input order and return one vector per item
+- embeddings use bounded fan-out concurrency instead of implicit true batch behavior
+- embeddings fail the whole request if any item fails
+- non-stream chat uses conservative retries for retry-safe upstream failures
+- stream chat avoids retries after a stream starts to prevent ambiguous partial output
+
+The runtime knobs are conservative by default so the proxy remains predictable under array inputs and moderate concurrency.
+
 ## Environment Variables
 
 Start by copying the example file:
@@ -59,6 +72,12 @@ cp .env.example .env
 - `VERTEX_CHAT_MODEL`: Default chat model ID
 - `VERTEX_EMBEDDING_MODEL`: Default embedding model ID
 - `REQUEST_TIMEOUT_SECONDS`: Upstream timeout
+- `EMBEDDING_MAX_CONCURRENCY`: Maximum in-flight upstream embedding calls per request
+- `EMBEDDING_MAX_INPUTS_PER_REQUEST`: Hard cap for input items in one embeddings request
+- `EMBEDDING_RETRY_ATTEMPTS`: Retry budget for retry-safe embedding failures
+- `EMBEDDING_RETRY_BACKOFF_MS`: Backoff between embedding retries in milliseconds
+- `CHAT_RETRY_ATTEMPTS`: Retry budget for retry-safe non-stream chat failures
+- `CHAT_RETRY_BACKOFF_MS`: Backoff between chat retries in milliseconds
 - `VERTEX_ACCESS_TOKEN`: Optional manual token override for local debugging
 
 ## Verification Paths

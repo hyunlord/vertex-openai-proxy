@@ -66,6 +66,10 @@ Likely causes:
 Check:
 - Vertex quota dashboards
 - embeddings fan-out concurrency from calling workloads
+- `EMBEDDING_MAX_CONCURRENCY`
+- `EMBEDDING_MAX_INPUTS_PER_REQUEST`
+
+The proxy intentionally uses one upstream embedding call per input item. Large client-side arrays can still generate many upstream calls, so tune proxy concurrency before increasing caller batch sizes.
 
 ## 502 Upstream / Malformed Payload
 
@@ -98,6 +102,10 @@ The proxy logs structured request summaries with:
 Embeddings also log:
 - `input_count`
 - `fanout_count`
+- `retry_attempts`
+
+Chat logs also include:
+- `retry_attempts`
 
 ## GKE Fails But VM Direct Succeeds
 

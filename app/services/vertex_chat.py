@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from collections.abc import AsyncIterator
@@ -20,7 +21,12 @@ from app.schemas.openai_stream import (
     ChatCompletionChunk,
     ChatCompletionChunkChoice,
 )
-from app.services.http_client import vertex_json_request, vertex_stream_request
+from app.services.http_client import (
+    VertexUpstreamError,
+    is_retryable_upstream_error,
+    vertex_json_request,
+    vertex_stream_request,
+)
 from app.utils.logging import log_event
 
 
@@ -200,8 +206,11 @@ async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
     body = payload.model_dump(exclude_none=True)
     started_at = perf_counter()
     upstream_status = 200
+    retry_attempts = 0
     try:
-        response = await vertex_json_request("POST", build_chat_url(), body)
+        response = await _chat_request_with_retry(body)
+        retry_attempts = response[1]
+        response = response[0]
         if not isinstance(response, dict):
             raise HTTPException(status_code=502, detail="Vertex chat response must be a JSON object")
         return normalize_chat_completion_response(response, model=payload.model)
@@ -218,6 +227,21 @@ async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
             endpoint="/v1/chat/completions",
             model=payload.model,
             mode="non_stream",
+            retry_attempts=retry_attempts,
             upstream_status=upstream_status,
             upstream_latency_ms=round((perf_counter() - started_at) * 1000, 3),
         )
+
+
+async def _chat_request_with_retry(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    attempts = 0
+    max_attempts = settings.chat_retry_attempts + 1
+    while True:
+        try:
+            response = await vertex_json_request("POST", build_chat_url(), body)
+            return response, attempts
+        except VertexUpstreamError as exc:
+            if attempts + 1 >= max_attempts or not is_retryable_upstream_error(exc):
+                raise
+            attempts += 1
+            await asyncio.sleep(settings.chat_retry_backoff_ms / 1000)

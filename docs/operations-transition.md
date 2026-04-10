@@ -11,6 +11,13 @@ Move a client application from an existing OpenAI-compatible gateway to `vertex-
 - chat model: `google/gemini-2.5-flash`
 - embedding model: `gemini-embedding-2-preview`
 
+## Runtime Expectations
+
+- embeddings requests may contain multiple inputs, but the proxy will still issue one upstream embedding call per item
+- embeddings are all-or-nothing; partial success is not returned
+- throughput tuning should start with `EMBEDDING_MAX_CONCURRENCY`, not caller-side implicit batching assumptions
+- non-stream chat may retry retry-safe failures; stream chat does not
+
 ## Revalidation Sequence
 
 1. Confirm local/mock checks pass:
