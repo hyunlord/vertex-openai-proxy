@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vertex-openai-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vertex-openai-proxy
+  template:
+    metadata:
+      labels:
+        app: vertex-openai-proxy
+    spec:
+      serviceAccountName: vertex-openai-proxy
+      containers:
+        - name: vertex-openai-proxy
+          image: your-registry/vertex-openai-proxy:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          env:
+            - name: INTERNAL_BEARER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vertex-openai-proxy-secret
+                  key: internal-bearer-token
+            - name: VERTEX_PROJECT_ID
+              value: your-gcp-project-id
+            - name: VERTEX_CHAT_LOCATION
+              value: global
+            - name: VERTEX_EMBEDDING_LOCATION
+              value: us-central1
+            - name: VERTEX_CHAT_MODEL
+              value: google/gemini-2.5-flash
+            - name: VERTEX_EMBEDDING_MODEL
+              value: gemini-embedding-2-preview

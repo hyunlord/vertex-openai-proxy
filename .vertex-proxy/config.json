@@ -1,0 +1,18 @@
+{
+  "project": "vertex-openai-proxy",
+  "scoring": {
+    "mechanical": 30,
+    "protocol": 40,
+    "cross_llm": 20,
+    "docs_release": 10
+  },
+  "retry_policy": {
+    "max_recode_attempts": 3,
+    "max_replan_attempts": 2
+  },
+  "agent_models": {
+    "coder": "gpt-5.4",
+    "verifier": "gpt-5.4-mini",
+    "challenger": "gpt-5.4-mini"
+  }
+}
