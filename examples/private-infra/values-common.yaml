@@ -1,0 +1,24 @@
+auth:
+  existingSecret: vertex-openai-proxy-auth
+  existingSecretKey: internal-bearer-token
+
+config:
+  vertexProjectId: your-private-gcp-project-id
+  vertexChatLocation: global
+  vertexEmbeddingLocation: us-central1
+  vertexChatModel: google/gemini-2.5-flash
+  vertexEmbeddingModel: gemini-embedding-2-preview
+
+runtime:
+  embedding:
+    adaptive:
+      enabled: true
+  service:
+    adaptiveMode: true
+  queue:
+    enabled: true
+    disableOnDegraded: true
+
+prometheus:
+  serviceMonitor:
+    enabled: true

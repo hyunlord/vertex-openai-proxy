@@ -1,0 +1,12 @@
+replicaCount: 2
+profile: balanced
+
+image:
+  tag: v0.1.0
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75

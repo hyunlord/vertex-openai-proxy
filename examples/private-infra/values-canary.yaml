@@ -1,0 +1,12 @@
+replicaCount: 1
+profile: balanced
+
+image:
+  tag: v0.1.0
+
+autoscaling:
+  enabled: false
+
+runtime:
+  service:
+    readinessFailOnDegraded: false

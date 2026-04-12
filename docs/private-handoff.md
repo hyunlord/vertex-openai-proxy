@@ -105,9 +105,16 @@ Use the public docs for operator guidance:
 - [`docs/runbook.md`](runbook.md)
 - [`docs/alerts.md`](alerts.md)
 - [`docs/release.md`](release.md)
+- [`docs/canary-checklist.md`](canary-checklist.md)
 
 Use the private repository for:
 
 - environment-specific rollout procedures
 - environment-specific rollback approvals
 - per-cluster scaling and alert thresholds
+
+Private repo starter values can begin from these public-safe examples:
+
+- [`examples/private-infra/values-common.yaml`](../examples/private-infra/values-common.yaml)
+- [`examples/private-infra/values-canary.yaml`](../examples/private-infra/values-canary.yaml)
+- [`examples/private-infra/values-stable.yaml`](../examples/private-infra/values-stable.yaml)

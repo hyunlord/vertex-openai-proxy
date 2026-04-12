@@ -8,6 +8,7 @@ def test_harness_docs_exist() -> None:
     for relative_path in [
         "CHANGELOG.md",
         "docs/alerts.md",
+        "docs/canary-checklist.md",
         "docs/harness.md",
         "docs/private-handoff.md",
         "docs/release.md",
@@ -23,6 +24,9 @@ def test_helm_example_values_exist() -> None:
         "charts/vertex-openai-proxy/examples/values-balanced-hpa.yaml",
         "charts/vertex-openai-proxy/examples/values-heavy-ingestion.yaml",
         "charts/vertex-openai-proxy/examples/values-production.yaml",
+        "examples/private-infra/values-common.yaml",
+        "examples/private-infra/values-canary.yaml",
+        "examples/private-infra/values-stable.yaml",
     ]:
         assert (PROJECT_ROOT / relative_path).exists()
 
@@ -60,3 +64,25 @@ def test_private_handoff_doc_covers_infra_boundary() -> None:
     assert "INTERNAL_BEARER_TOKEN" in handoff
     assert "Workload Identity" in handoff
     assert "private" in handoff.lower()
+
+
+def test_canary_checklist_covers_verification_and_rollback() -> None:
+    checklist = (PROJECT_ROOT / "docs" / "canary-checklist.md").read_text()
+
+    assert "/livez" in checklist
+    assert "/readyz" in checklist
+    assert "vertex_proxy_request_shed_total" in checklist
+    assert "rollback" in checklist.lower()
+
+
+def test_private_infra_values_examples_cover_common_canary_and_stable() -> None:
+    common = (PROJECT_ROOT / "examples/private-infra/values-common.yaml").read_text()
+    canary = (PROJECT_ROOT / "examples/private-infra/values-canary.yaml").read_text()
+    stable = (PROJECT_ROOT / "examples/private-infra/values-stable.yaml").read_text()
+
+    assert "auth:" in common
+    assert "existingSecret" in common
+    assert "vertexProjectId" in common
+    assert "replicaCount" in canary
+    assert "replicaCount" in stable
+    assert "image:" in stable
