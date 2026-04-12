@@ -314,3 +314,52 @@ Configuration notes:
 
 - add a future timeout-heavy round to confirm timeout-driven downscale behavior
 - after more live evidence is collected, decide whether adaptive mode should remain operator-only or become a recommended optional setting
+
+## 2026-04-12 Round 5: Live Runtime Mode And Metrics Validation
+
+### Context
+
+Goal:
+- verify that the shared runtime controller can change service mode during live Vertex-backed requests
+- confirm that `/health` and `/metrics` reflect the current runtime mode after a live request
+
+Environment type:
+- `proxy_local_vertex`
+
+Configuration notes:
+- runtime adaptive mode enabled
+- service-level thresholds intentionally lowered for observation
+- one elevated scenario and one degraded scenario were executed separately
+
+### Experiment Matrix
+
+| Scenario | Request shape | Soft embeddings latency threshold | Hard embeddings latency threshold |
+|---|---|---:|---:|
+| `elevated` | one `/v1/embeddings` request with 8 inputs | `1000ms` | `10000ms` |
+| `degraded` | one `/v1/embeddings` request with 8 inputs | `1000ms` | `2000ms` |
+
+### Results
+
+| Scenario | Before `/health` mode | After `/health` mode | Status | Latency | Output | Metrics summary |
+|---|---|---|---:|---:|---|---|
+| `elevated` | `normal` | `elevated` | `200` | `3894.4ms` | `data_count=8` | `/metrics` reported `vertex_proxy_runtime_mode{mode="elevated"} 1` |
+| `degraded` | `normal` | `degraded` | `200` | `3687.0ms` | `data_count=8` | `/metrics` reported `vertex_proxy_runtime_mode{mode="degraded"} 1` |
+
+Observed metrics:
+
+- elevated scenario:
+  - `vertex_proxy_request_p95_latency_ms{scope="embeddings"} 3887.016`
+- degraded scenario:
+  - `vertex_proxy_request_p95_latency_ms{scope="embeddings"} 3680.034`
+
+### Interpretation
+
+- the shared runtime controller can drive service mode changes under live Vertex-backed traffic
+- `/health` correctly surfaced the runtime mode after the request completed
+- `/metrics` correctly reflected the active runtime mode and recent embeddings latency
+- this makes the runtime controller operationally observable rather than implicit
+
+### Next Changes
+
+- add empirical runs that include multiple chat and embedding requests in the same window
+- add future rounds covering recovery behavior from `degraded -> elevated -> normal`
