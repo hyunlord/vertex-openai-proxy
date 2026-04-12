@@ -31,6 +31,55 @@ helm lint ./charts/vertex-openai-proxy
 helm template vertex-openai-proxy ./charts/vertex-openai-proxy
 ```
 
+## Versioning Policy
+
+- `app version` tracks the user-facing proxy release line
+- `Chart version` tracks Helm packaging changes and should be updated whenever chart behavior or defaults change
+- patch releases should cover bug fixes, docs corrections, and validation hardening
+- minor releases should cover backward-compatible feature additions
+- breaking compatibility changes should use a major version increment
+
+Current chart metadata:
+
+- Chart version: `0.1.0`
+- app version: `0.1.0`
+
+When preparing a release:
+
+1. update [CHANGELOG.md](../CHANGELOG.md)
+2. update `charts/vertex-openai-proxy/Chart.yaml` if the release changes chart or app version
+3. make sure release notes match the changelog summary
+
+## Release Note Template
+
+Use this format for GitHub releases or public release summaries:
+
+```markdown
+## Summary
+
+- short release description
+
+## Added
+
+- new feature or operator-visible capability
+
+## Changed
+
+- behavior changes or tuning changes
+
+## Fixed
+
+- bugs, regressions, or validation hardening
+
+## Operational Notes
+
+- deployment, chart, or runtime guidance
+
+## Known Limitations
+
+- environment blockers or intentionally unsupported surface
+```
+
 ## GKE Blocker Rule
 
 If GKE requests fail with:
