@@ -5,6 +5,9 @@
 - all tests pass
 - `verify_quick.sh` passes
 - `verify_full.sh` passes
+- `verify_cross.sh` passes
+- `helm lint ./charts/vertex-openai-proxy` passes
+- `helm template vertex-openai-proxy ./charts/vertex-openai-proxy` passes
 - compatibility docs match the implementation
 - VM direct validation path is documented and runnable
 
@@ -13,6 +16,20 @@
 - reference proxy verification
 - harness mechanical and protocol gates
 - pluggable cross-LLM boundary
+- Helm chart validation
+
+## Local Release Commands
+
+Run:
+
+```bash
+python3 -m pytest tests -q
+bash scripts/verify_quick.sh
+bash scripts/verify_full.sh
+bash scripts/verify_cross.sh
+helm lint ./charts/vertex-openai-proxy
+helm template vertex-openai-proxy ./charts/vertex-openai-proxy
+```
 
 ## GKE Blocker Rule
 
