@@ -44,6 +44,8 @@ Vertex AI on GKE works best with Workload Identity and short-lived Google access
 
 See [architecture](docs/architecture.md), [compatibility](docs/compatibility.md), [troubleshooting](docs/troubleshooting.md), and [roadmap](docs/roadmap.md) for details.
 
+For real-world tuning and model behavior history, see the running [empirical testing log](docs/empirical-testing.md). Future live model tests should be appended there instead of being kept only in ad-hoc notes.
+
 ## Runtime Policy
 
 This proxy prefers correctness over speculative batching.
@@ -76,6 +78,16 @@ cp .env.example .env
 - `EMBEDDING_MAX_INPUTS_PER_REQUEST`: Hard cap for input items in one embeddings request
 - `EMBEDDING_RETRY_ATTEMPTS`: Retry budget for retry-safe embedding failures
 - `EMBEDDING_RETRY_BACKOFF_MS`: Backoff between embedding retries in milliseconds
+- `EMBEDDING_ADAPTIVE_CONCURRENCY`: Enable optional step-based adaptive fan-out for embeddings
+- `EMBEDDING_ADAPTIVE_MAX_CONCURRENCY`: Upper bound for adaptive embedding concurrency
+- `EMBEDDING_ADAPTIVE_WINDOW_SIZE`: Number of recent embedding requests to consider
+- `EMBEDDING_ADAPTIVE_WINDOW_SECONDS`: Maximum age of adaptive request history
+- `EMBEDDING_ADAPTIVE_COOLDOWN_SECONDS`: Minimum time between adaptive adjustments
+- `EMBEDDING_ADAPTIVE_MIN_SAMPLES`: Minimum recent requests required before adaptive changes
+- `EMBEDDING_ADAPTIVE_LATENCY_UP_THRESHOLD_MS`: Healthy p95 latency threshold for scale-up
+- `EMBEDDING_ADAPTIVE_LATENCY_DOWN_THRESHOLD_MS`: Unhealthy p95 latency threshold for scale-down
+- `EMBEDDING_ADAPTIVE_FAILURE_RATE_UP_THRESHOLD`: Maximum retryable failure rate for scale-up
+- `EMBEDDING_ADAPTIVE_FAILURE_RATE_DOWN_THRESHOLD`: Retryable failure rate that triggers scale-down
 - `CHAT_RETRY_ATTEMPTS`: Retry budget for retry-safe non-stream chat failures
 - `CHAT_RETRY_BACKOFF_MS`: Backoff between chat retries in milliseconds
 - `VERTEX_ACCESS_TOKEN`: Optional manual token override for local debugging

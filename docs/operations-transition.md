@@ -16,6 +16,7 @@ Move a client application from an existing OpenAI-compatible gateway to `vertex-
 - embeddings requests may contain multiple inputs, but the proxy will still issue one upstream embedding call per item
 - embeddings are all-or-nothing; partial success is not returned
 - throughput tuning should start with `EMBEDDING_MAX_CONCURRENCY`, not caller-side implicit batching assumptions
+- optional adaptive embedding concurrency should remain disabled until local and live validation are complete
 - non-stream chat may retry retry-safe failures; stream chat does not
 
 ## Revalidation Sequence
@@ -29,6 +30,8 @@ Move a client application from an existing OpenAI-compatible gateway to `vertex-
 3. Re-test in GKE:
    - `python3 scripts/smoke_in_cluster.py`
 4. Update the client application's external API configuration only after the four endpoints are verified in-cluster
+
+Record every live verification round in [empirical-testing.md](empirical-testing.md) so later tuning decisions can build on prior evidence instead of re-discovering it.
 
 ## Rollback Rule
 

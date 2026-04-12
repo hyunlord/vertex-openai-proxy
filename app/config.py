@@ -16,6 +16,16 @@ class Settings(BaseSettings):
     embedding_max_inputs_per_request: int = 64
     embedding_retry_attempts: int = 1
     embedding_retry_backoff_ms: int = 200
+    embedding_adaptive_concurrency: bool = False
+    embedding_adaptive_max_concurrency: int = 16
+    embedding_adaptive_window_size: int = 20
+    embedding_adaptive_window_seconds: int = 60
+    embedding_adaptive_cooldown_seconds: int = 30
+    embedding_adaptive_min_samples: int = 5
+    embedding_adaptive_latency_up_threshold_ms: float = 4000.0
+    embedding_adaptive_latency_down_threshold_ms: float = 8000.0
+    embedding_adaptive_failure_rate_up_threshold: float = 0.01
+    embedding_adaptive_failure_rate_down_threshold: float = 0.10
     chat_retry_attempts: int = 1
     chat_retry_backoff_ms: int = 200
     vertex_access_token: str | None = None
