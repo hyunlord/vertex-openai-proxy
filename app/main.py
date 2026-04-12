@@ -1,7 +1,10 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.config import validate_runtime_settings
 from app.errors import (
     extract_detail_message,
     extract_request_id,
@@ -18,7 +21,13 @@ from app.utils.logging import log_exception, reset_request_id, set_request_id
 from app.utils.request_id import generate_request_id
 
 
-app = FastAPI(title="vertex-openai-proxy")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    validate_runtime_settings()
+    yield
+
+
+app = FastAPI(title="vertex-openai-proxy", lifespan=lifespan)
 
 
 @app.middleware("http")

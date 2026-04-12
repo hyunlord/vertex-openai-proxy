@@ -13,7 +13,7 @@ from app.main import app
 
 
 client = TestClient(app)
-AUTH = {"Authorization": "Bearer change-me"}
+AUTH = {"Authorization": "Bearer test-proxy-token"}
 
 
 @patch("app.services.vertex_chat.vertex_json_request", new_callable=AsyncMock)

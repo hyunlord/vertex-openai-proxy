@@ -207,7 +207,7 @@ def test_upstream_error_is_normalized_by_app(monkeypatch: pytest.MonkeyPatch) ->
 
     response = client.post(
         "/v1/chat/completions",
-        headers={"Authorization": "Bearer change-me"},
+        headers={"Authorization": "Bearer test-proxy-token"},
         json={
             "model": "google/gemini-2.5-flash",
             "messages": [{"role": "user", "content": "hello"}],
@@ -238,7 +238,7 @@ def test_vertex_auth_error_is_normalized_by_app(monkeypatch: pytest.MonkeyPatch)
 
     response = client.post(
         "/v1/chat/completions",
-        headers={"Authorization": "Bearer change-me"},
+        headers={"Authorization": "Bearer test-proxy-token"},
         json={
             "model": "google/gemini-2.5-flash",
             "messages": [{"role": "user", "content": "hello"}],

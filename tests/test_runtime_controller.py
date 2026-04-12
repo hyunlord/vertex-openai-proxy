@@ -1,5 +1,7 @@
 from time import time
 
+import pytest
+
 from app.config import settings
 from app.runtime.controller import runtime_controller
 
@@ -95,3 +97,35 @@ def test_runtime_controller_tracks_request_shed_reasons(monkeypatch) -> None:
     assert rejection.reason == "degraded_input_count"
     snapshot = runtime_controller.snapshot()
     assert snapshot["request_shed"]["embeddings:degraded_input_count"] == 1
+
+
+def test_admission_check_handles_inconsistent_internal_state_without_assert(monkeypatch) -> None:
+    runtime_controller.reset()
+    monkeypatch.setattr(
+        runtime_controller,
+        "_capacity_decision_locked",
+        lambda *, endpoint, input_count: ("wait", None),
+    )
+
+    rejection = runtime_controller.admission_check(endpoint="chat")
+
+    assert rejection is not None
+    assert rejection.status_code == 503
+    assert rejection.reason == "admission_state_inconsistent"
+
+
+@pytest.mark.asyncio
+async def test_acquire_request_slot_handles_inconsistent_internal_state_without_assert(monkeypatch) -> None:
+    runtime_controller.reset()
+    monkeypatch.setattr(settings, "queue_enabled", False)
+    monkeypatch.setattr(
+        runtime_controller,
+        "_capacity_decision_locked",
+        lambda *, endpoint, input_count: ("wait", None),
+    )
+
+    rejection = await runtime_controller.acquire_request_slot(endpoint="embeddings")
+
+    assert rejection is not None
+    assert rejection.status_code == 503
+    assert rejection.reason == "admission_state_inconsistent"

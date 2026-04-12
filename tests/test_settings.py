@@ -1,9 +1,12 @@
 from importlib import reload
 
+import pytest
+
 import app.config as config_module
 
 
 def test_runtime_policy_settings_exist_with_conservative_defaults(monkeypatch) -> None:
+    monkeypatch.setenv("INTERNAL_BEARER_TOKEN", "test-proxy-token")
     monkeypatch.delenv("EMBEDDING_MAX_CONCURRENCY", raising=False)
     monkeypatch.delenv("EMBEDDING_MAX_INPUTS_PER_REQUEST", raising=False)
     monkeypatch.delenv("EMBEDDING_RETRY_ATTEMPTS", raising=False)
@@ -80,3 +83,20 @@ def test_runtime_policy_settings_exist_with_conservative_defaults(monkeypatch) -
     assert settings.embeddings_queue_max_depth == 4
     assert settings.chat_retry_attempts == 1
     assert settings.chat_retry_backoff_ms == 200
+
+
+@pytest.mark.parametrize(
+    "token",
+    ["", "change-me", "replace-with-a-random-token"],
+)
+def test_validate_runtime_settings_rejects_insecure_bearer_tokens(monkeypatch, token: str) -> None:
+    monkeypatch.setattr(config_module.settings, "internal_bearer_token", token)
+
+    with pytest.raises(RuntimeError):
+        config_module.validate_runtime_settings()
+
+
+def test_validate_runtime_settings_accepts_non_default_bearer_token(monkeypatch) -> None:
+    monkeypatch.setattr(config_module.settings, "internal_bearer_token", "test-proxy-token")
+
+    config_module.validate_runtime_settings()

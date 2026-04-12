@@ -9,8 +9,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 def test_chart_defaults_fail_closed_for_internal_bearer_token() -> None:
     values_text = (PROJECT_ROOT / "charts/vertex-openai-proxy/values.yaml").read_text()
     secret_template = (PROJECT_ROOT / "charts/vertex-openai-proxy/templates/secret.yaml").read_text()
+    config_text = (PROJECT_ROOT / "app/config.py").read_text()
 
     assert "internalBearerToken: \"\"" in values_text
+    assert 'internal_bearer_token: str = ""' in config_text
     assert 'fail "Set auth.internalBearerToken or auth.existingSecret before installing the chart."' in secret_template
 
 

@@ -97,11 +97,15 @@ class RuntimeController:
                 return None
             if rejection is not None and decision == "reject":
                 return rejection
-            assert rejection is not None
-            return self._record_rejection(
+            if rejection is not None and decision == "wait":
+                return self._record_rejection(
+                    endpoint=endpoint,
+                    reason=rejection.reason,
+                    message=rejection.message,
+                    status_code=rejection.status_code,
+                )
+            return self._unexpected_admission_state_rejection(
                 endpoint=endpoint,
-                reason=rejection.reason,
-                message=rejection.message,
             )
 
     async def acquire_request_slot(
@@ -121,11 +125,15 @@ class RuntimeController:
             if decision == "reject":
                 return rejection
             if not settings.queue_enabled:
-                assert rejection is not None
-                return self._record_rejection(
+                if rejection is not None:
+                    return self._record_rejection(
+                        endpoint=endpoint,
+                        reason=rejection.reason,
+                        message=rejection.message,
+                        status_code=rejection.status_code,
+                    )
+                return self._unexpected_admission_state_rejection(
                     endpoint=endpoint,
-                    reason=rejection.reason,
-                    message=rejection.message,
                 )
             if settings.queue_disable_on_degraded and self._mode == "degraded":
                 return self._record_rejection(
@@ -528,14 +536,27 @@ class RuntimeController:
         endpoint: EndpointName,
         reason: str,
         message: str,
+        status_code: int = 429,
     ) -> AdmissionRejection:
         key = f"{endpoint}:{reason}"
-        self._request_shed[key] += 1
+        self._request_shed[key] = self._request_shed.get(key, 0) + 1
         return AdmissionRejection(
             endpoint=endpoint,
             reason=reason,
-            status_code=429,
+            status_code=status_code,
             message=message,
+        )
+
+    def _unexpected_admission_state_rejection(
+        self,
+        *,
+        endpoint: EndpointName,
+    ) -> AdmissionRejection:
+        return self._record_rejection(
+            endpoint=endpoint,
+            reason="admission_state_inconsistent",
+            message="Request shed because admission control encountered an inconsistent internal state",
+            status_code=503,
         )
 
     def _refresh_mode_reasons(self, metrics: dict, process: dict[str, float]) -> None:

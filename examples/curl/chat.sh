@@ -2,7 +2,7 @@
 set -euo pipefail
 
 : "${PROXY_URL:=http://127.0.0.1:8080}"
-: "${PROXY_TOKEN:=change-me}"
+: "${PROXY_TOKEN:=replace-with-a-random-token}"
 : "${MODEL:=google/gemini-2.5-flash}"
 
 curl -sS \
