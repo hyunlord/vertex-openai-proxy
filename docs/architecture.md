@@ -47,6 +47,8 @@
 - input is normalized to a list
 - proxy performs one upstream Vertex call per input item
 - `asyncio.gather()` preserves order across fan-out responses
+- fixed mode uses `EMBEDDING_MAX_CONCURRENCY`
+- optional adaptive mode can raise or lower the effective concurrency step-by-step based on recent request health
 - response is returned as OpenAI-style `data[index]`
 
 ## Design Principles
@@ -56,3 +58,8 @@
 - never require long-lived Google API keys in GKE
 - avoid leaking prompt or embedding content into logs
 - enforce compatibility with tests, not documentation alone
+- keep adaptive behavior optional, observable, and disabled by default
+
+## Ongoing Validation Record
+
+Live model and runtime tuning observations should be recorded in [empirical-testing.md](empirical-testing.md). Treat that file as the canonical append-only history for direct Vertex and end-to-end proxy experiments.

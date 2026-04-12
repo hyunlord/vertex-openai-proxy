@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from app.config import settings
 from app.schemas.openai_embeddings import EmbeddingRequest
+from app.services.adaptive_concurrency import adaptive_embedding_concurrency
 from app.services.http_client import (
     VertexUpstreamError,
     is_retryable_upstream_error,
@@ -81,8 +82,16 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
     started_at = perf_counter()
     upstream_status = 200
     retry_attempts = 0
+    effective_concurrency = adaptive_embedding_concurrency.get_effective_concurrency(
+        base=settings.embedding_max_concurrency,
+        adaptive_enabled=settings.embedding_adaptive_concurrency,
+        adaptive_max=settings.embedding_adaptive_max_concurrency,
+    )
+    success = False
+    retryable_failure = False
+    timed_out = False
     try:
-        semaphore = asyncio.Semaphore(settings.embedding_max_concurrency)
+        semaphore = asyncio.Semaphore(effective_concurrency)
 
         async def bounded_embed(text: str) -> tuple[list[float], int]:
             async with semaphore:
@@ -91,6 +100,7 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
         results = await asyncio.gather(*[bounded_embed(text) for text in texts])
         vectors = [vector for vector, _ in results]
         retry_attempts = sum(item_retry_attempts for _, item_retry_attempts in results)
+        success = True
         return {
             "object": "list",
             "model": model,
@@ -107,13 +117,47 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
                 "total_tokens": sum(len(text.split()) for text in texts),
             },
         }
+    except VertexUpstreamError as exc:
+        upstream_status = exc.status_code
+        retryable_failure = is_retryable_upstream_error(exc)
+        raise
     except HTTPException as exc:
         upstream_status = exc.status_code
+        timed_out = exc.status_code == 504
+        raise
+    except TimeoutError:
+        upstream_status = 504
+        retryable_failure = True
+        timed_out = True
         raise
     except Exception:
         upstream_status = 500
         raise
     finally:
+        request_latency_ms = round((perf_counter() - started_at) * 1000, 3)
+        adjustment = adaptive_embedding_concurrency.record_outcome(
+            latency_ms=request_latency_ms,
+            success=success,
+            retryable_failure=retryable_failure,
+            timed_out=timed_out,
+            base=settings.embedding_max_concurrency,
+            adaptive_enabled=settings.embedding_adaptive_concurrency,
+            adaptive_max=settings.embedding_adaptive_max_concurrency,
+        )
+        if adjustment is not None:
+            log_event(
+                "adaptive_concurrency_adjusted",
+                operation="embeddings",
+                configured_concurrency=settings.embedding_max_concurrency,
+                effective_concurrency=adjustment["new_concurrency"],
+                previous_concurrency=adjustment["previous_concurrency"],
+                reason=adjustment["reason"],
+                request_count=adjustment["request_count"],
+                failure_rate=adjustment["failure_rate"],
+                timeout_rate=adjustment["timeout_rate"],
+                avg_latency_ms=adjustment["avg_latency_ms"],
+                p95_latency_ms=adjustment["p95_latency_ms"],
+            )
         log_event(
             "request_completed",
             operation="embeddings",
@@ -122,7 +166,10 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
             mode="batch" if len(texts) > 1 else "single",
             input_count=len(texts),
             fanout_count=len(texts),
+            adaptive_concurrency_enabled=settings.embedding_adaptive_concurrency,
+            configured_concurrency=settings.embedding_max_concurrency,
+            effective_concurrency=effective_concurrency,
             retry_attempts=retry_attempts,
             upstream_status=upstream_status,
-            upstream_latency_ms=round((perf_counter() - started_at) * 1000, 3),
+            upstream_latency_ms=request_latency_ms,
         )
