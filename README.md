@@ -311,6 +311,12 @@ helm upgrade --install vertex-openai-proxy ./charts/vertex-openai-proxy \
   --set profile=balanced
 ```
 
+Example values files are also provided:
+
+- [`values-small.yaml`](charts/vertex-openai-proxy/examples/values-small.yaml)
+- [`values-balanced-hpa.yaml`](charts/vertex-openai-proxy/examples/values-balanced-hpa.yaml)
+- [`values-heavy-ingestion.yaml`](charts/vertex-openai-proxy/examples/values-heavy-ingestion.yaml)
+
 By default the selected profile also provides the chart's recommended `EMBEDDING_MAX_CONCURRENCY`:
 
 - `small` -> `4`

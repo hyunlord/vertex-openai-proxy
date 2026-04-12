@@ -363,3 +363,58 @@ Observed metrics:
 
 - add empirical runs that include multiple chat and embedding requests in the same window
 - add future rounds covering recovery behavior from `degraded -> elevated -> normal`
+
+## 2026-04-12 Round 6: Bounded Queue Synthetic Admission Validation
+
+### Context
+
+Goal:
+- verify that optional bounded queueing smooths only short bursts
+- confirm that queue waits remain close to configured budgets
+- confirm that degraded mode can disable queueing and fall back to fast `429`
+
+Environment type:
+- `proxy_in_process_synthetic`
+
+Configuration notes:
+- no live Vertex calls were involved in this round
+- the runtime controller was exercised directly to isolate queue admission behavior
+- measured wait times below reflect local controller timing, not end-to-end network latency
+
+### Experiment Matrix
+
+| Scenario | Queue setting | Capacity condition | Expected result |
+|---|---|---|---|
+| `baseline_no_queue_chat` | queue disabled | chat capacity saturated | immediate `429` |
+| `small_chat_release_50ms` | chat wait `100ms`, depth `4` | slot released after `50ms` | request admitted after short wait |
+| `balanced_chat_release_120ms` | chat wait `200ms`, depth `8` | slot released after `120ms` | request admitted after short wait |
+| `balanced_embeddings_release_150ms` | embeddings wait `1000ms`, depth `4` | slot released after `150ms` | request admitted after short wait |
+| `embeddings_timeout_100ms` | embeddings wait `100ms`, depth `1` | no slot release | timed out `429` |
+| `degraded_queue_disabled_chat` | queue enabled, disabled on degraded | degraded mode with saturated chat capacity | immediate `429` |
+
+### Results
+
+| Scenario | Status | Observed wait | Queue outcome | Notes |
+|---|---:|---:|---|---|
+| `baseline_no_queue_chat` | `429` | `0.0ms` | no queue | rejection reason `absolute_in_flight_cap` |
+| `small_chat_release_50ms` | admitted | `54.8ms` | queued then admitted | `queue_admitted_total=1` |
+| `balanced_chat_release_120ms` | admitted | `121.5ms` | queued then admitted | `queue_admitted_total=1` |
+| `balanced_embeddings_release_150ms` | admitted | `151.4ms` | queued then admitted | `queue_admitted_total=1` |
+| `embeddings_timeout_100ms` | `429` | `102.2ms` | queue timeout | rejection reason `queue_timeout`, `timeouts_total=1` |
+| `degraded_queue_disabled_chat` | `429` | `0.0ms` | queue bypassed | rejection reason `queue_disabled_on_degraded` |
+
+### Interpretation
+
+- bounded queueing is behaving as intended for micro-burst smoothing rather than long-lived backlog
+- observed waits tracked configured budgets closely enough to treat the queue as a short admission buffer
+- degraded mode correctly bypassed queueing and returned a fast overload signal
+- the current defaults still fit the service philosophy:
+  - short waits only
+  - small depths only
+  - overload remains visible
+
+### Next Changes
+
+- run a future mixed-load round that combines queueing with live chat and embeddings traffic
+- add empirical guidance for when queue depth should stay flat versus when operators should prefer more replicas
+- consider adding queue wait histograms if future live tuning shows enough value

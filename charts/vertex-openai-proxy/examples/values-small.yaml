@@ -1,0 +1,11 @@
+profile: small
+
+replicaCount: 1
+
+autoscaling:
+  enabled: false
+
+runtime:
+  queue:
+    enabled: false
+
