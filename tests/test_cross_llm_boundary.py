@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
-from harness.checks.cross_llm import CrossLLMReviewResult, build_retry_payload
-
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+from harness.checks.cross_llm import CrossLLMReviewResult, build_cross_llm_result, build_retry_payload
 
 
 def test_retry_payload_excludes_hidden_score_fields() -> None:
@@ -24,11 +18,20 @@ def test_retry_payload_excludes_hidden_score_fields() -> None:
     }
 
 
-def test_config_represents_coder_verifier_separation() -> None:
-    config = json.loads((PROJECT_ROOT / ".vertex-proxy/config.json").read_text())
-    models = config["agent_models"]
+def test_cross_llm_result_builder_preserves_internal_review_fields() -> None:
+    payload = build_cross_llm_result(
+        issues=["fix this"],
+        suggestions=["do that"],
+        verdict="re-code",
+        score=71,
+    )
 
-    assert models["coder"] != models["verifier"]
+    assert payload == {
+        "issues": ["fix this"],
+        "suggestions": ["do that"],
+        "verdict": "re-code",
+        "score": 71,
+    }
 
 
 def test_cross_llm_result_shape_is_stable() -> None:

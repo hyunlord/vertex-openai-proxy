@@ -30,7 +30,7 @@ affinity: {}
 auth:
   existingSecret: ""
   existingSecretKey: internal-bearer-token
-  internalBearerToken: change-me
+  internalBearerToken: ""
   vertexAccessToken: ""
 
 config:
