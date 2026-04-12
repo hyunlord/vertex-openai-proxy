@@ -10,6 +10,9 @@ def test_ci_workflow_runs_cross_and_helm_validation() -> None:
     assert "verify_cross.sh" in workflow
     assert "helm lint ./charts/vertex-openai-proxy" in workflow
     assert "helm template vertex-openai-proxy ./charts/vertex-openai-proxy" in workflow
+    assert "auth.internalBearerToken=ci-smoke-token" in workflow
+    assert "Verify Helm chart fails closed without auth secret" in workflow
+    assert "Set auth.internalBearerToken or auth.existingSecret" in workflow
 
 
 def test_release_doc_mentions_cross_and_helm_gates() -> None:
@@ -18,3 +21,4 @@ def test_release_doc_mentions_cross_and_helm_gates() -> None:
     assert "verify_cross.sh" in release_doc
     assert "helm lint" in release_doc
     assert "helm template" in release_doc
+    assert "fails closed" in release_doc

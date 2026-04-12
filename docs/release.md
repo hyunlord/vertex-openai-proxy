@@ -8,6 +8,7 @@
 - `verify_cross.sh` passes
 - `helm lint ./charts/vertex-openai-proxy` passes
 - `helm template vertex-openai-proxy ./charts/vertex-openai-proxy` passes
+- the Helm chart fails closed without `auth.internalBearerToken` or `auth.existingSecret`
 - compatibility docs match the implementation
 - VM direct validation path is documented and runnable
 
@@ -30,6 +31,11 @@ bash scripts/verify_cross.sh
 helm lint ./charts/vertex-openai-proxy
 helm template vertex-openai-proxy ./charts/vertex-openai-proxy
 ```
+
+For secure chart validation:
+
+- use a dummy token for successful render checks
+- separately verify the chart fails closed without `auth.internalBearerToken` or `auth.existingSecret`
 
 ## Versioning Policy
 

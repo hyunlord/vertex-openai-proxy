@@ -32,10 +32,17 @@ jobs:
         uses: azure/setup-helm@v4
       - name: Run Helm lint
         run: |
-          helm lint ./charts/vertex-openai-proxy
+          helm lint ./charts/vertex-openai-proxy --set auth.internalBearerToken=ci-smoke-token
+      - name: Verify Helm chart fails closed without auth secret
+        run: |
+          if helm template vertex-openai-proxy ./charts/vertex-openai-proxy >helm.out 2>helm.err; then
+            echo "Expected chart rendering without auth secret to fail"
+            exit 1
+          fi
+          grep -q "Set auth.internalBearerToken or auth.existingSecret" helm.err
       - name: Run Helm template
         run: |
-          helm template vertex-openai-proxy ./charts/vertex-openai-proxy
-          helm template vertex-openai-proxy ./charts/vertex-openai-proxy -f ./charts/vertex-openai-proxy/examples/values-small.yaml
-          helm template vertex-openai-proxy ./charts/vertex-openai-proxy -f ./charts/vertex-openai-proxy/examples/values-balanced-hpa.yaml
-          helm template vertex-openai-proxy ./charts/vertex-openai-proxy -f ./charts/vertex-openai-proxy/examples/values-heavy-ingestion.yaml
+          helm template vertex-openai-proxy ./charts/vertex-openai-proxy --set auth.internalBearerToken=ci-smoke-token
+          helm template vertex-openai-proxy ./charts/vertex-openai-proxy -f ./charts/vertex-openai-proxy/examples/values-small.yaml --set auth.internalBearerToken=ci-smoke-token
+          helm template vertex-openai-proxy ./charts/vertex-openai-proxy -f ./charts/vertex-openai-proxy/examples/values-balanced-hpa.yaml --set auth.internalBearerToken=ci-smoke-token
+          helm template vertex-openai-proxy ./charts/vertex-openai-proxy -f ./charts/vertex-openai-proxy/examples/values-heavy-ingestion.yaml --set auth.internalBearerToken=ci-smoke-token
