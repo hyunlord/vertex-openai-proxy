@@ -204,6 +204,8 @@ async def create_chat_completion_stream(payload: ChatCompletionRequest) -> Async
         runtime_mode = runtime_controller.request_finished(
             endpoint="chat",
             latency_ms=request_latency_ms,
+            status_code=upstream_status,
+            retry_attempts=0,
             retryable_failure=retryable_failure,
             timed_out=timed_out,
             auth_failure=auth_failure,
@@ -255,6 +257,8 @@ async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
         runtime_mode = runtime_controller.request_finished(
             endpoint="chat",
             latency_ms=request_latency_ms,
+            status_code=upstream_status,
+            retry_attempts=retry_attempts,
             retryable_failure=retryable_failure,
             timed_out=timed_out,
             auth_failure=auth_failure,

@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock, patch
+from time import time
 
 import pytest
 
@@ -18,15 +19,18 @@ async def test_chat_retry_budget_is_disabled_in_degraded_mode(
     runtime_controller.reset()
     monkeypatch.setattr(settings, "runtime_adaptive_mode", True)
     monkeypatch.setattr(settings, "chat_retry_attempts", 2)
+    now = time()
 
     runtime_controller.request_started("chat")
     runtime_controller.request_finished(
         endpoint="chat",
         latency_ms=100.0,
+        status_code=503,
+        retry_attempts=1,
         retryable_failure=True,
         timed_out=False,
         auth_failure=False,
-        now=1000.0,
+        now=now,
     )
 
     mock_vertex_json_request.side_effect = VertexUpstreamError(
