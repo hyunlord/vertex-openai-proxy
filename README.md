@@ -53,6 +53,7 @@ For real-world tuning and model behavior history, see the running [empirical tes
 Release history is tracked in [CHANGELOG.md](CHANGELOG.md).
 
 For private infrastructure handoff guidance, see [docs/private-handoff.md](docs/private-handoff.md).
+For canary rollout guidance, see [docs/canary-checklist.md](docs/canary-checklist.md).
 
 ## Runtime Policy
 
