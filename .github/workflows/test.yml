@@ -25,3 +25,17 @@ jobs:
       - name: Run full verify
         run: |
           bash scripts/verify_full.sh
+      - name: Run cross verify
+        run: |
+          bash scripts/verify_cross.sh
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+      - name: Run Helm lint
+        run: |
+          helm lint ./charts/vertex-openai-proxy
+      - name: Run Helm template
+        run: |
+          helm template vertex-openai-proxy ./charts/vertex-openai-proxy
+          helm template vertex-openai-proxy ./charts/vertex-openai-proxy -f ./charts/vertex-openai-proxy/examples/values-small.yaml
+          helm template vertex-openai-proxy ./charts/vertex-openai-proxy -f ./charts/vertex-openai-proxy/examples/values-balanced-hpa.yaml
+          helm template vertex-openai-proxy ./charts/vertex-openai-proxy -f ./charts/vertex-openai-proxy/examples/values-heavy-ingestion.yaml
