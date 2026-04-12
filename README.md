@@ -318,6 +318,7 @@ Example values files are also provided:
 - [`values-small.yaml`](charts/vertex-openai-proxy/examples/values-small.yaml)
 - [`values-balanced-hpa.yaml`](charts/vertex-openai-proxy/examples/values-balanced-hpa.yaml)
 - [`values-heavy-ingestion.yaml`](charts/vertex-openai-proxy/examples/values-heavy-ingestion.yaml)
+- [`values-production.yaml`](charts/vertex-openai-proxy/examples/values-production.yaml)
 
 By default the selected profile also provides the chart's recommended `EMBEDDING_MAX_CONCURRENCY`:
 
@@ -355,6 +356,11 @@ Recommended local verification when `helm` is available:
 helm lint ./charts/vertex-openai-proxy
 helm template vertex-openai-proxy ./charts/vertex-openai-proxy
 ```
+
+For production rollout guidance, see:
+
+- [`docs/runbook.md`](docs/runbook.md)
+- [`docs/alerts.md`](docs/alerts.md)
 
 ## Grafana Dashboard
 

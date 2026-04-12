@@ -1,0 +1,34 @@
+profile: balanced
+
+replicaCount: 2
+
+auth:
+  existingSecret: vertex-openai-proxy-auth
+  existingSecretKey: internal-bearer-token
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
+
+runtime:
+  embedding:
+    adaptive:
+      enabled: true
+      maxConcurrency: 16
+  service:
+    adaptiveMode: true
+    readinessFailOnDegraded: false
+  queue:
+    enabled: true
+    disableOnDegraded: true
+    chatMaxWaitMs: 200
+    chatMaxDepth: 8
+    embeddingsMaxWaitMs: 1000
+    embeddingsMaxDepth: 4
+
+prometheus:
+  serviceMonitor:
+    enabled: true
