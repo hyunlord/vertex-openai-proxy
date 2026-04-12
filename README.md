@@ -249,6 +249,55 @@ This service is meant to run on GKE with a Kubernetes service account mapped to 
 - [curl embeddings example](examples/curl/embeddings.sh)
 - [Python chat example](examples/python/chat.py)
 
+## Helm
+
+This repository includes a generic Helm chart at [`charts/vertex-openai-proxy/`](charts/vertex-openai-proxy).
+
+Basic install:
+
+```bash
+helm upgrade --install vertex-openai-proxy ./charts/vertex-openai-proxy \
+  --set image.repository=your-registry/vertex-openai-proxy \
+  --set image.tag=latest \
+  --set auth.internalBearerToken=change-me \
+  --set config.vertexProjectId=your-gcp-project-id
+```
+
+Using an existing secret:
+
+```bash
+helm upgrade --install vertex-openai-proxy ./charts/vertex-openai-proxy \
+  --set auth.existingSecret=vertex-openai-proxy-auth \
+  --set auth.existingSecretKey=internal-bearer-token
+```
+
+Enable `ServiceMonitor` in Prometheus Operator environments:
+
+```bash
+helm upgrade --install vertex-openai-proxy ./charts/vertex-openai-proxy \
+  --set prometheus.serviceMonitor.enabled=true
+```
+
+Recommended local verification when `helm` is available:
+
+```bash
+helm lint ./charts/vertex-openai-proxy
+helm template vertex-openai-proxy ./charts/vertex-openai-proxy
+```
+
+## Grafana Dashboard
+
+An importable overview dashboard is provided at
+[`dashboards/vertex-openai-proxy-overview.json`](dashboards/vertex-openai-proxy-overview.json).
+
+It visualizes:
+
+- runtime mode and readiness
+- request counts and status class breakdown
+- p95 latency and error rates
+- effective embedding concurrency and in-flight requests
+- process CPU/RSS and request shedding
+
 ## Harness
 
 The repository includes a proxy-native verification harness under [`.vertex-proxy`](.vertex-proxy) and [`harness/`](harness).

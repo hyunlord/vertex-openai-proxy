@@ -1,0 +1,109 @@
+{
+  "title": "Vertex OpenAI Proxy Overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Runtime Mode",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr": "vertex_proxy_runtime_mode{mode=\"normal\"}", "legendFormat": "normal"},
+        {"expr": "vertex_proxy_runtime_mode{mode=\"elevated\"}", "legendFormat": "elevated"},
+        {"expr": "vertex_proxy_runtime_mode{mode=\"degraded\"}", "legendFormat": "degraded"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "title": "Readiness",
+      "type": "stat",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr": "vertex_proxy_runtime_ready", "legendFormat": "ready"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+    },
+    {
+      "id": 3,
+      "title": "Recent Request Counts By Scope",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr": "vertex_proxy_request_count_recent{scope=\"chat\"}", "legendFormat": "chat"},
+        {"expr": "vertex_proxy_request_count_recent{scope=\"embeddings\"}", "legendFormat": "embeddings"},
+        {"expr": "vertex_proxy_request_count_recent{scope=\"global\"}", "legendFormat": "global"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "id": 4,
+      "title": "Recent Status Breakdown",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr": "vertex_proxy_request_status_recent{scope=\"global\",status_class=\"2xx\"}", "legendFormat": "2xx"},
+        {"expr": "vertex_proxy_request_status_recent{scope=\"global\",status_class=\"4xx\"}", "legendFormat": "4xx"},
+        {"expr": "vertex_proxy_request_status_recent{scope=\"global\",status_class=\"5xx\"}", "legendFormat": "5xx"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    },
+    {
+      "id": 5,
+      "title": "P95 Latency By Scope (ms)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr": "vertex_proxy_request_p95_latency_ms{scope=\"chat\"}", "legendFormat": "chat"},
+        {"expr": "vertex_proxy_request_p95_latency_ms{scope=\"embeddings\"}", "legendFormat": "embeddings"},
+        {"expr": "vertex_proxy_adaptive_p95_latency_ms", "legendFormat": "adaptive embeddings"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+    },
+    {
+      "id": 6,
+      "title": "Retryable Error And Timeout Rates",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr": "vertex_proxy_retryable_error_rate{scope=\"global\"}", "legendFormat": "retryable_error_rate"},
+        {"expr": "vertex_proxy_timeout_rate{scope=\"global\"}", "legendFormat": "timeout_rate"},
+        {"expr": "vertex_proxy_auth_failure_rate{scope=\"global\"}", "legendFormat": "auth_failure_rate"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+    },
+    {
+      "id": 7,
+      "title": "Embedding Concurrency And In-Flight",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr": "vertex_proxy_effective_embedding_concurrency", "legendFormat": "effective_embedding_concurrency"},
+        {"expr": "vertex_proxy_in_flight_requests{endpoint=\"embeddings\"}", "legendFormat": "embeddings_in_flight"},
+        {"expr": "vertex_proxy_in_flight_requests{endpoint=\"chat\"}", "legendFormat": "chat_in_flight"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+    },
+    {
+      "id": 8,
+      "title": "CPU, RSS, And Request Shedding",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr": "vertex_proxy_process_cpu_percent", "legendFormat": "cpu_percent"},
+        {"expr": "vertex_proxy_process_rss_mb", "legendFormat": "rss_mb"},
+        {"expr": "vertex_proxy_request_shed_total", "legendFormat": "{{endpoint}}/{{reason}}"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  }
+}

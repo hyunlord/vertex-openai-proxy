@@ -1,0 +1,105 @@
+replicaCount: 1
+
+image:
+  repository: your-registry/vertex-openai-proxy
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+auth:
+  existingSecret: ""
+  existingSecretKey: internal-bearer-token
+  internalBearerToken: change-me
+  vertexAccessToken: ""
+
+config:
+  vertexProjectId: your-gcp-project-id
+  vertexChatLocation: global
+  vertexEmbeddingLocation: us-central1
+  vertexChatModel: google/gemini-2.5-flash
+  vertexEmbeddingModel: gemini-embedding-2-preview
+  requestTimeoutSeconds: 60
+
+runtime:
+  embedding:
+    maxConcurrency: 4
+    maxInputsPerRequest: 64
+    retryAttempts: 1
+    retryBackoffMs: 200
+    adaptive:
+      enabled: false
+      maxConcurrency: 16
+      windowSize: 20
+      windowSeconds: 60
+      cooldownSeconds: 30
+      minSamples: 5
+      latencyUpThresholdMs: 4000
+      latencyDownThresholdMs: 8000
+      failureRateUpThreshold: 0.01
+      failureRateDownThreshold: 0.10
+  service:
+    adaptiveMode: false
+    readinessFailOnDegraded: false
+    windowSize: 50
+    windowSeconds: 60
+    recoverySeconds: 30
+    softInFlightChat: 50
+    hardInFlightChat: 100
+    softInFlightEmbeddings: 10
+    hardInFlightEmbeddings: 20
+    chatMaxInFlightRequests: 200
+    embeddingsMaxInFlightRequests: 40
+    degradedChatMaxInFlight: 20
+    degradedEmbeddingsMaxInFlight: 4
+    degradedMaxEmbeddingInputs: 16
+    chatSoftLatencyMs: 6000
+    chatHardLatencyMs: 12000
+    embeddingsSoftLatencyMs: 4000
+    embeddingsHardLatencyMs: 8000
+    softRetryableErrorRate: 0.02
+    hardRetryableErrorRate: 0.10
+    softTimeoutRate: 0.01
+    hardTimeoutRate: 0.05
+    hardCpuPercent: 90
+    hardRssMb: 1024
+  chat:
+    retryAttempts: 1
+    retryBackoffMs: 200
+
+probes:
+  liveness:
+    path: /livez
+    initialDelaySeconds: 15
+    periodSeconds: 20
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+prometheus:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
