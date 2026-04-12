@@ -273,11 +273,56 @@ helm upgrade --install vertex-openai-proxy ./charts/vertex-openai-proxy \
 
 The chart fails closed if neither `auth.existingSecret` nor `auth.internalBearerToken` is set.
 
+Built-in deployment profiles:
+
+- `small`
+  - requests: `250m CPU`, `512Mi`
+  - limits: `500m CPU`, `1Gi`
+  - recommended for low-traffic chat or light embeddings
+- `balanced`
+  - requests: `500m CPU`, `1Gi`
+  - limits: `1 CPU`, `2Gi`
+  - default profile and recommended starting point for most deployments
+- `heavy`
+  - requests: `1 CPU`, `2Gi`
+  - limits: `2 CPU`, `4Gi`
+  - recommended for sustained embeddings ingestion or higher concurrency
+
+Select a profile:
+
+```bash
+helm upgrade --install vertex-openai-proxy ./charts/vertex-openai-proxy \
+  --set profile=balanced
+```
+
+By default the selected profile also provides the chart's recommended `EMBEDDING_MAX_CONCURRENCY`:
+
+- `small` -> `4`
+- `balanced` -> `8`
+- `heavy` -> `12`
+
+You can still override the runtime knob directly:
+
+```bash
+helm upgrade --install vertex-openai-proxy ./charts/vertex-openai-proxy \
+  --set profile=balanced \
+  --set runtime.embedding.maxConcurrency=10
+```
+
 Enable `ServiceMonitor` in Prometheus Operator environments:
 
 ```bash
 helm upgrade --install vertex-openai-proxy ./charts/vertex-openai-proxy \
   --set prometheus.serviceMonitor.enabled=true
+```
+
+Enable optional HPA:
+
+```bash
+helm upgrade --install vertex-openai-proxy ./charts/vertex-openai-proxy \
+  --set autoscaling.enabled=true \
+  --set autoscaling.minReplicas=2 \
+  --set autoscaling.maxReplicas=6
 ```
 
 Recommended local verification when `helm` is available:

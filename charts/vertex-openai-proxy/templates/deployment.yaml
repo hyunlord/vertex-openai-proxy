@@ -5,7 +5,9 @@ metadata:
   labels:
     {{- include "vertex-openai-proxy.labels" . | nindent 4 }}
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "vertex-openai-proxy.selectorLabels" . | nindent 6 }}
@@ -61,7 +63,7 @@ spec:
             initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- include "vertex-openai-proxy.resources" . | nindent 12 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
