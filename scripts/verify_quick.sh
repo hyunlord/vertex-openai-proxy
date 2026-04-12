@@ -6,6 +6,8 @@ if [[ "${1:-}" == "--baseline" ]]; then
   shift
 fi
 
+export INTERNAL_BEARER_TOKEN="${INTERNAL_BEARER_TOKEN:-test-proxy-token}"
+
 if [[ "${HARNESS_SELFTEST:-0}" == "1" ]]; then
   cat <<'JSON'
 {"mode":"quick","ok":true,"checks":[{"name":"pytest","ok":true},{"name":"import","ok":true},{"name":"smoke_chat","ok":true},{"name":"smoke_embeddings","ok":true}]}

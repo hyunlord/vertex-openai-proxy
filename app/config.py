@@ -1,11 +1,18 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+INSECURE_INTERNAL_BEARER_TOKENS = {
+    "",
+    "change-me",
+    "replace-with-a-random-token",
+}
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_name: str = "vertex-openai-proxy"
-    internal_bearer_token: str = "change-me"
+    internal_bearer_token: str = ""
     vertex_project_id: str = "your-gcp-project-id"
     vertex_chat_location: str = "global"
     vertex_embedding_location: str = "us-central1"
@@ -64,3 +71,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def validate_runtime_settings() -> None:
+    token = settings.internal_bearer_token.strip()
+    if token in INSECURE_INTERNAL_BEARER_TOKENS:
+        raise RuntimeError(
+            "INTERNAL_BEARER_TOKEN must be set to a non-default value before starting the app."
+        )

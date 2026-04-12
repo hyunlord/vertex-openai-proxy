@@ -3,7 +3,7 @@ from openai import OpenAI
 
 client = OpenAI(
     base_url="http://127.0.0.1:8080/v1",
-    api_key="change-me",
+    api_key="replace-with-a-random-token",
 )
 
 response = client.chat.completions.create(

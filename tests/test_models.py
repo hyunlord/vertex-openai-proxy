@@ -19,7 +19,7 @@ def test_models() -> None:
 def test_invalid_chat_model_is_rejected() -> None:
     response = client.post(
         "/v1/chat/completions",
-        headers={"Authorization": "Bearer change-me"},
+        headers={"Authorization": "Bearer test-proxy-token"},
         json={
             "model": "unsupported-chat-model",
             "messages": [{"role": "user", "content": "hello"}],
@@ -34,7 +34,7 @@ def test_invalid_chat_model_is_rejected() -> None:
 def test_invalid_embedding_model_is_rejected() -> None:
     response = client.post(
         "/v1/embeddings",
-        headers={"Authorization": "Bearer change-me"},
+        headers={"Authorization": "Bearer test-proxy-token"},
         json={
             "model": "unsupported-embedding-model",
             "input": "hello",

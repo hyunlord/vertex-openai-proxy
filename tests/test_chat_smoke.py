@@ -6,7 +6,7 @@ from app.main import app
 
 
 client = TestClient(app)
-AUTH = {"Authorization": "Bearer change-me"}
+AUTH = {"Authorization": "Bearer test-proxy-token"}
 
 
 @patch("app.routes.chat.create_chat_completion", new_callable=AsyncMock)

@@ -14,7 +14,7 @@ from app.runtime.controller import runtime_controller
 
 
 client = TestClient(app)
-AUTH = {"Authorization": "Bearer change-me"}
+AUTH = {"Authorization": "Bearer test-proxy-token"}
 
 
 @pytest.mark.asyncio

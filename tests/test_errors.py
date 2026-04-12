@@ -29,7 +29,7 @@ def test_unauthorized_chat_returns_openai_error_and_request_id() -> None:
 def test_validation_error_returns_openai_error_and_request_id() -> None:
     response = client.post(
         "/v1/chat/completions",
-        headers={"Authorization": "Bearer change-me"},
+        headers={"Authorization": "Bearer test-proxy-token"},
         json={"model": "google/gemini-2.5-flash"},
     )
 
@@ -60,7 +60,7 @@ def test_generic_errors_return_safe_message(monkeypatch) -> None:
 
     response = error_client.post(
         "/v1/chat/completions",
-        headers={"Authorization": "Bearer change-me"},
+        headers={"Authorization": "Bearer test-proxy-token"},
         json={
             "model": "google/gemini-2.5-flash",
             "messages": [{"role": "user", "content": "hello"}],

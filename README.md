@@ -204,7 +204,7 @@ pip install -r requirements.txt
 2. Export configuration:
 ```bash
 cp .env.example .env
-export INTERNAL_BEARER_TOKEN=change-me
+export INTERNAL_BEARER_TOKEN=replace-with-a-random-token
 export VERTEX_PROJECT_ID=your-gcp-project-id
 export VERTEX_CHAT_LOCATION=global
 export VERTEX_EMBEDDING_LOCATION=us-central1
@@ -228,7 +228,7 @@ When GKE pod-to-Vertex auth is blocked but the ops VM can still call Vertex, use
 ```bash
 docker build -t vertex-openai-proxy:local .
 docker run --rm -p 8080:8080 \
-  -e INTERNAL_BEARER_TOKEN=change-me \
+  -e INTERNAL_BEARER_TOKEN=replace-with-a-random-token \
   -e VERTEX_PROJECT_ID=your-gcp-project-id \
   -e VERTEX_CHAT_LOCATION=global \
   -e VERTEX_EMBEDDING_LOCATION=us-central1 \
@@ -239,7 +239,7 @@ Then run:
 
 ```bash
 export PROXY_BASE_URL=http://127.0.0.1:8080
-export INTERNAL_BEARER_TOKEN=change-me
+export INTERNAL_BEARER_TOKEN=replace-with-a-random-token
 python3 scripts/smoke_vm_direct.py
 ```
 
@@ -251,7 +251,7 @@ Use this path only when GKE Workload Identity and perimeter policy are expected 
 
 ```bash
 export IN_CLUSTER_PROXY_BASE_URL=http://your-service-name:8080
-export INTERNAL_BEARER_TOKEN=change-me
+export INTERNAL_BEARER_TOKEN=replace-with-a-random-token
 python3 scripts/smoke_in_cluster.py
 ```
 

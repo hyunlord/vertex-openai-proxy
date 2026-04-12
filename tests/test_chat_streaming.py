@@ -12,7 +12,7 @@ from app.services.vertex_chat import create_chat_completion_stream
 
 
 client = TestClient(app)
-AUTH = {"Authorization": "Bearer change-me"}
+AUTH = {"Authorization": "Bearer test-proxy-token"}
 
 
 async def _fake_vertex_stream():

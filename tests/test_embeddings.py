@@ -13,7 +13,7 @@ from app.services.vertex_embeddings import create_embedding_response
 
 
 client = TestClient(app)
-AUTH = {"Authorization": "Bearer change-me"}
+AUTH = {"Authorization": "Bearer test-proxy-token"}
 
 
 @patch("app.services.vertex_embeddings._embed_one", new_callable=AsyncMock)
