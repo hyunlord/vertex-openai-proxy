@@ -15,7 +15,7 @@ async def embeddings(
     _: None = Depends(require_internal_bearer_token),
 ) -> dict:
     payload.ensure_supported_model()
-    rejection = runtime_controller.admission_check(
+    rejection = await runtime_controller.acquire_request_slot(
         endpoint="embeddings",
         input_count=len(payload.normalized_input),
     )

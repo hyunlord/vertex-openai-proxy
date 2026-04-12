@@ -116,6 +116,15 @@ runtime:
     hardTimeoutRate: 0.05
     hardCpuPercent: 90
     hardRssMb: 1024
+  queue:
+    enabled: false
+    disableOnDegraded: true
+    pollIntervalMs: 25
+    retryAfterSeconds: 1
+    chatMaxWaitMs: 200
+    chatMaxDepth: 8
+    embeddingsMaxWaitMs: 1000
+    embeddingsMaxDepth: 4
   chat:
     retryAttempts: 1
     retryBackoffMs: 200

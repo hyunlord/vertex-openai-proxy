@@ -75,3 +75,4 @@ def test_runtimez_returns_detailed_runtime_snapshot() -> None:
     assert "effective_limits" in payload
     assert "adaptive_metrics" in payload
     assert "process" in payload
+    assert "queue" in payload

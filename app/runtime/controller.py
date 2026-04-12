@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import resource
 import sys
 from collections import deque
@@ -63,10 +64,20 @@ class RuntimeController:
         self._request_shed = {
             "chat:absolute_in_flight_cap": 0,
             "chat:degraded_in_flight_cap": 0,
+            "chat:queue_full": 0,
+            "chat:queue_timeout": 0,
+            "chat:queue_disabled_on_degraded": 0,
             "embeddings:absolute_in_flight_cap": 0,
             "embeddings:degraded_in_flight_cap": 0,
             "embeddings:degraded_input_count": 0,
+            "embeddings:queue_full": 0,
+            "embeddings:queue_timeout": 0,
+            "embeddings:queue_disabled_on_degraded": 0,
         }
+        self._queued_chat = 0
+        self._queued_embeddings = 0
+        self._queue_admitted_total = {"chat": 0, "embeddings": 0}
+        self._queue_timeouts_total = {"chat": 0, "embeddings": 0}
         self._last_process_wall: float | None = None
         self._last_process_cpu: float | None = None
         self._cpu_percent: float = 0.0
@@ -78,55 +89,95 @@ class RuntimeController:
         input_count: int = 1,
     ) -> AdmissionRejection | None:
         with self._lock:
-            mode = self._mode
-            if endpoint == "chat":
-                if self._in_flight_chat >= settings.chat_max_in_flight_requests:
-                    return self._record_rejection(
-                        endpoint="chat",
-                        reason="absolute_in_flight_cap",
-                        message="Request shed because chat in-flight requests exceeded the configured cap",
-                    )
-                if (
-                    settings.runtime_adaptive_mode
-                    and mode == "degraded"
-                    and self._in_flight_chat >= settings.runtime_degraded_chat_max_in_flight
-                ):
-                    return self._record_rejection(
-                        endpoint="chat",
-                        reason="degraded_in_flight_cap",
-                        message="Request shed because degraded-mode chat in-flight requests exceeded the configured cap",
-                    )
+            decision, rejection = self._capacity_decision_locked(
+                endpoint=endpoint,
+                input_count=input_count,
+            )
+            if decision == "start":
                 return None
+            if rejection is not None and decision == "reject":
+                return rejection
+            assert rejection is not None
+            return self._record_rejection(
+                endpoint=endpoint,
+                reason=rejection.reason,
+                message=rejection.message,
+            )
 
-            if self._in_flight_embeddings >= settings.embeddings_max_in_flight_requests:
+    async def acquire_request_slot(
+        self,
+        *,
+        endpoint: EndpointName,
+        input_count: int = 1,
+    ) -> AdmissionRejection | None:
+        with self._lock:
+            decision, rejection = self._capacity_decision_locked(
+                endpoint=endpoint,
+                input_count=input_count,
+            )
+            if decision == "start":
+                self._request_started_locked(endpoint)
+                return None
+            if decision == "reject":
+                return rejection
+            if not settings.queue_enabled:
+                assert rejection is not None
                 return self._record_rejection(
-                    endpoint="embeddings",
-                    reason="absolute_in_flight_cap",
-                    message="Request shed because embeddings in-flight requests exceeded the configured cap",
+                    endpoint=endpoint,
+                    reason=rejection.reason,
+                    message=rejection.message,
                 )
-            if settings.runtime_adaptive_mode and mode == "degraded":
-                if self._in_flight_embeddings >= settings.runtime_degraded_embeddings_max_in_flight:
+            if settings.queue_disable_on_degraded and self._mode == "degraded":
+                return self._record_rejection(
+                    endpoint=endpoint,
+                    reason="queue_disabled_on_degraded",
+                    message="Request shed because bounded queueing is disabled while the service is degraded",
+                )
+            if self._queue_depth_locked(endpoint) >= self._queue_max_depth(endpoint):
+                return self._record_rejection(
+                    endpoint=endpoint,
+                    reason="queue_full",
+                    message="Request shed because the bounded queue is full",
+                )
+            self._set_queue_depth_locked(endpoint, self._queue_depth_locked(endpoint) + 1)
+
+        deadline = time() + (self._queue_max_wait_ms(endpoint) / 1000)
+        poll_interval = max(0.001, settings.queue_poll_interval_ms / 1000)
+        while True:
+            await asyncio.sleep(poll_interval)
+            now = time()
+            with self._lock:
+                decision, rejection = self._capacity_decision_locked(
+                    endpoint=endpoint,
+                    input_count=input_count,
+                )
+                if decision == "start":
+                    self._set_queue_depth_locked(endpoint, max(0, self._queue_depth_locked(endpoint) - 1))
+                    self._queue_admitted_total[endpoint] += 1
+                    self._request_started_locked(endpoint)
+                    return None
+                if decision == "reject":
+                    self._set_queue_depth_locked(endpoint, max(0, self._queue_depth_locked(endpoint) - 1))
+                    return rejection
+                if settings.queue_disable_on_degraded and self._mode == "degraded":
+                    self._set_queue_depth_locked(endpoint, max(0, self._queue_depth_locked(endpoint) - 1))
                     return self._record_rejection(
-                        endpoint="embeddings",
-                        reason="degraded_in_flight_cap",
-                        message="Request shed because degraded-mode embeddings in-flight requests exceeded the configured cap",
+                        endpoint=endpoint,
+                        reason="queue_disabled_on_degraded",
+                        message="Request shed because bounded queueing is disabled while the service is degraded",
                     )
-                if input_count > settings.runtime_degraded_max_embedding_inputs:
+                if now >= deadline:
+                    self._set_queue_depth_locked(endpoint, max(0, self._queue_depth_locked(endpoint) - 1))
+                    self._queue_timeouts_total[endpoint] += 1
                     return self._record_rejection(
-                        endpoint="embeddings",
-                        reason="degraded_input_count",
-                        message=(
-                            "Request shed because degraded-mode embeddings input count exceeded the configured cap"
-                        ),
+                        endpoint=endpoint,
+                        reason="queue_timeout",
+                        message="Request shed because the bounded queue wait budget expired before capacity became available",
                     )
-            return None
 
     def request_started(self, endpoint: EndpointName) -> None:
         with self._lock:
-            if endpoint == "chat":
-                self._in_flight_chat += 1
-            else:
-                self._in_flight_embeddings += 1
+            self._request_started_locked(endpoint)
 
     def request_finished(
         self,
@@ -183,10 +234,27 @@ class RuntimeController:
                 "mode": self._mode,
                 "reasons": list(self._mode_reasons),
                 "adaptive_mode_enabled": settings.runtime_adaptive_mode,
+                "queue_enabled": settings.queue_enabled,
                 "ready": ready,
                 "in_flight": {
                     "chat": self._in_flight_chat,
                     "embeddings": self._in_flight_embeddings,
+                },
+                "queue": {
+                    "chat": {
+                        "depth": self._queued_chat,
+                        "max_depth": settings.chat_queue_max_depth,
+                        "max_wait_ms": settings.chat_queue_max_wait_ms,
+                        "admitted_total": self._queue_admitted_total["chat"],
+                        "timeouts_total": self._queue_timeouts_total["chat"],
+                    },
+                    "embeddings": {
+                        "depth": self._queued_embeddings,
+                        "max_depth": settings.embeddings_queue_max_depth,
+                        "max_wait_ms": settings.embeddings_queue_max_wait_ms,
+                        "admitted_total": self._queue_admitted_total["embeddings"],
+                        "timeouts_total": self._queue_timeouts_total["embeddings"],
+                    },
                 },
                 "metrics": metrics,
                 "process": {
@@ -208,9 +276,34 @@ class RuntimeController:
             self._in_flight_embeddings = 0
             self._mode_transitions = {key: 0 for key in self._mode_transitions}
             self._request_shed = {key: 0 for key in self._request_shed}
+            self._queued_chat = 0
+            self._queued_embeddings = 0
+            self._queue_admitted_total = {"chat": 0, "embeddings": 0}
+            self._queue_timeouts_total = {"chat": 0, "embeddings": 0}
             self._last_process_wall = None
             self._last_process_cpu = None
             self._cpu_percent = 0.0
+
+    def _request_started_locked(self, endpoint: EndpointName) -> None:
+        if endpoint == "chat":
+            self._in_flight_chat += 1
+        else:
+            self._in_flight_embeddings += 1
+
+    def _queue_depth_locked(self, endpoint: EndpointName) -> int:
+        return self._queued_chat if endpoint == "chat" else self._queued_embeddings
+
+    def _set_queue_depth_locked(self, endpoint: EndpointName, value: int) -> None:
+        if endpoint == "chat":
+            self._queued_chat = value
+        else:
+            self._queued_embeddings = value
+
+    def _queue_max_depth(self, endpoint: EndpointName) -> int:
+        return settings.chat_queue_max_depth if endpoint == "chat" else settings.embeddings_queue_max_depth
+
+    def _queue_max_wait_ms(self, endpoint: EndpointName) -> int:
+        return settings.chat_queue_max_wait_ms if endpoint == "chat" else settings.embeddings_queue_max_wait_ms
 
     def _prune(self, now: float) -> None:
         while len(self._recent) > settings.runtime_window_size:
@@ -258,6 +351,76 @@ class RuntimeController:
             self._mode_transitions[transition] += 1
         self._mode = mode
         self._last_mode_change_at = now
+
+    def _capacity_decision_locked(
+        self,
+        *,
+        endpoint: EndpointName,
+        input_count: int,
+    ) -> tuple[Literal["start", "wait", "reject"], AdmissionRejection | None]:
+        mode = self._mode
+        if endpoint == "chat":
+            if self._in_flight_chat >= settings.chat_max_in_flight_requests:
+                return (
+                    "wait",
+                    AdmissionRejection(
+                        endpoint="chat",
+                        reason="absolute_in_flight_cap",
+                        status_code=429,
+                        message="Request shed because chat in-flight requests exceeded the configured cap",
+                    ),
+                )
+            if (
+                settings.runtime_adaptive_mode
+                and mode == "degraded"
+                and self._in_flight_chat >= settings.runtime_degraded_chat_max_in_flight
+            ):
+                return (
+                    "wait",
+                    AdmissionRejection(
+                        endpoint="chat",
+                        reason="degraded_in_flight_cap",
+                        status_code=429,
+                        message="Request shed because degraded-mode chat in-flight requests exceeded the configured cap",
+                    ),
+                )
+            return "start", None
+
+        if settings.runtime_adaptive_mode and mode == "degraded":
+            if input_count > settings.runtime_degraded_max_embedding_inputs:
+                return (
+                    "reject",
+                    self._record_rejection(
+                        endpoint="embeddings",
+                        reason="degraded_input_count",
+                        message=(
+                            "Request shed because degraded-mode embeddings input count exceeded the configured cap"
+                        ),
+                    ),
+                )
+            if self._in_flight_embeddings >= settings.runtime_degraded_embeddings_max_in_flight:
+                return (
+                    "wait",
+                    AdmissionRejection(
+                        endpoint="embeddings",
+                        reason="degraded_in_flight_cap",
+                        status_code=429,
+                        message=(
+                            "Request shed because degraded-mode embeddings in-flight requests exceeded the configured cap"
+                        ),
+                    ),
+                )
+        if self._in_flight_embeddings >= settings.embeddings_max_in_flight_requests:
+            return (
+                "wait",
+                AdmissionRejection(
+                    endpoint="embeddings",
+                    reason="absolute_in_flight_cap",
+                    status_code=429,
+                    message="Request shed because embeddings in-flight requests exceeded the configured cap",
+                ),
+            )
+        return "start", None
 
     def _compute_metrics(self) -> dict:
         return {

@@ -49,5 +49,13 @@ data:
   RUNTIME_HARD_TIMEOUT_RATE: {{ .Values.runtime.service.hardTimeoutRate | quote }}
   RUNTIME_HARD_CPU_PERCENT: {{ .Values.runtime.service.hardCpuPercent | quote }}
   RUNTIME_HARD_RSS_MB: {{ .Values.runtime.service.hardRssMb | quote }}
+  QUEUE_ENABLED: {{ .Values.runtime.queue.enabled | quote }}
+  QUEUE_DISABLE_ON_DEGRADED: {{ .Values.runtime.queue.disableOnDegraded | quote }}
+  QUEUE_POLL_INTERVAL_MS: {{ .Values.runtime.queue.pollIntervalMs | quote }}
+  QUEUE_RETRY_AFTER_SECONDS: {{ .Values.runtime.queue.retryAfterSeconds | quote }}
+  CHAT_QUEUE_MAX_WAIT_MS: {{ .Values.runtime.queue.chatMaxWaitMs | quote }}
+  CHAT_QUEUE_MAX_DEPTH: {{ .Values.runtime.queue.chatMaxDepth | quote }}
+  EMBEDDINGS_QUEUE_MAX_WAIT_MS: {{ .Values.runtime.queue.embeddingsMaxWaitMs | quote }}
+  EMBEDDINGS_QUEUE_MAX_DEPTH: {{ .Values.runtime.queue.embeddingsMaxDepth | quote }}
   CHAT_RETRY_ATTEMPTS: {{ .Values.runtime.chat.retryAttempts | quote }}
   CHAT_RETRY_BACKOFF_MS: {{ .Values.runtime.chat.retryBackoffMs | quote }}

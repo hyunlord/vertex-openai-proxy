@@ -30,6 +30,14 @@ def test_runtime_policy_settings_exist_with_conservative_defaults(monkeypatch) -
     monkeypatch.delenv("RUNTIME_DEGRADED_MAX_EMBEDDING_INPUTS", raising=False)
     monkeypatch.delenv("RUNTIME_HARD_CPU_PERCENT", raising=False)
     monkeypatch.delenv("RUNTIME_HARD_RSS_MB", raising=False)
+    monkeypatch.delenv("QUEUE_ENABLED", raising=False)
+    monkeypatch.delenv("QUEUE_DISABLE_ON_DEGRADED", raising=False)
+    monkeypatch.delenv("QUEUE_POLL_INTERVAL_MS", raising=False)
+    monkeypatch.delenv("QUEUE_RETRY_AFTER_SECONDS", raising=False)
+    monkeypatch.delenv("CHAT_QUEUE_MAX_WAIT_MS", raising=False)
+    monkeypatch.delenv("CHAT_QUEUE_MAX_DEPTH", raising=False)
+    monkeypatch.delenv("EMBEDDINGS_QUEUE_MAX_WAIT_MS", raising=False)
+    monkeypatch.delenv("EMBEDDINGS_QUEUE_MAX_DEPTH", raising=False)
     monkeypatch.delenv("CHAT_RETRY_ATTEMPTS", raising=False)
     monkeypatch.delenv("CHAT_RETRY_BACKOFF_MS", raising=False)
 
@@ -62,5 +70,13 @@ def test_runtime_policy_settings_exist_with_conservative_defaults(monkeypatch) -
     assert settings.runtime_degraded_max_embedding_inputs == 16
     assert settings.runtime_hard_cpu_percent == 90.0
     assert settings.runtime_hard_rss_mb == 1024.0
+    assert settings.queue_enabled is False
+    assert settings.queue_disable_on_degraded is True
+    assert settings.queue_poll_interval_ms == 25
+    assert settings.queue_retry_after_seconds == 1
+    assert settings.chat_queue_max_wait_ms == 200
+    assert settings.chat_queue_max_depth == 8
+    assert settings.embeddings_queue_max_wait_ms == 1000
+    assert settings.embeddings_queue_max_depth == 4
     assert settings.chat_retry_attempts == 1
     assert settings.chat_retry_backoff_ms == 200

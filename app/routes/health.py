@@ -37,6 +37,7 @@ def _runtime_payload() -> dict:
         },
         "adaptive_metrics": embedding_metrics,
         "process": snapshot["process"],
+        "queue": snapshot["queue"],
         "mode_transitions": snapshot["mode_transitions"],
         "request_shed": snapshot["request_shed"],
     }
