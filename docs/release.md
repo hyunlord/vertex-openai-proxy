@@ -18,6 +18,7 @@
 - harness mechanical and protocol gates
 - pluggable cross-LLM boundary
 - Helm chart validation
+- public-safe release artifact generation
 
 ## Local Release Commands
 
@@ -36,6 +37,27 @@ For secure chart validation:
 
 - use a dummy token for successful render checks
 - separately verify the chart fails closed without `auth.internalBearerToken` or `auth.existingSecret`
+
+## Public-Safe Release Automation
+
+The release workflow in [`.github/workflows/release.yml`](../.github/workflows/release.yml) is intentionally limited to public-safe artifact generation.
+
+It may:
+
+- re-run tests and verify scripts
+- validate and package the Helm chart
+- build the container image
+- publish a public image to `ghcr.io`
+- attach the packaged chart to a GitHub Release
+
+It must not:
+
+- run `kubectl`
+- run `helm upgrade`
+- call `gcloud`
+- target a specific cloud project or Kubernetes cluster
+
+For private deployment handoff, see [private-handoff.md](private-handoff.md).
 
 ## Versioning Policy
 

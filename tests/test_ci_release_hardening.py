@@ -22,3 +22,16 @@ def test_release_doc_mentions_cross_and_helm_gates() -> None:
     assert "helm lint" in release_doc
     assert "helm template" in release_doc
     assert "fails closed" in release_doc
+
+
+def test_release_workflow_builds_public_artifacts_without_cluster_deploy() -> None:
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text()
+
+    assert "docker/build-push-action" in workflow
+    assert "ghcr.io" in workflow
+    assert "helm package" in workflow
+    assert "workflow_dispatch" in workflow
+    assert "release:" in workflow
+    assert "kubectl" not in workflow
+    assert "helm upgrade" not in workflow
+    assert "gcloud" not in workflow
