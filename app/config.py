@@ -50,6 +50,14 @@ class Settings(BaseSettings):
     runtime_hard_timeout_rate: float = 0.05
     runtime_hard_cpu_percent: float = 90.0
     runtime_hard_rss_mb: float = 1024.0
+    queue_enabled: bool = False
+    queue_disable_on_degraded: bool = True
+    queue_poll_interval_ms: int = 25
+    queue_retry_after_seconds: int = 1
+    chat_queue_max_wait_ms: int = 200
+    chat_queue_max_depth: int = 8
+    embeddings_queue_max_wait_ms: int = 1000
+    embeddings_queue_max_depth: int = 4
     chat_retry_attempts: int = 1
     chat_retry_backoff_ms: int = 200
     vertex_access_token: str | None = None

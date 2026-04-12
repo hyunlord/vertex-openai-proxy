@@ -16,6 +16,8 @@
 - CI release hardening
 - smoke checks against a live Vertex environment
 - better Python and curl examples
+- bounded queue empirical tuning and operating guidance
+  - see [bounded-queue.md](bounded-queue.md)
 
 ## Production Gateway v2
 

@@ -83,7 +83,6 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
     started_at = perf_counter()
     upstream_status = 200
     retry_attempts = 0
-    runtime_controller.request_started("embeddings")
     effective_concurrency = adaptive_embedding_concurrency.get_effective_concurrency(
         base=settings.embedding_max_concurrency,
         adaptive_enabled=settings.embedding_adaptive_concurrency,

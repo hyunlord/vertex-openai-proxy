@@ -45,6 +45,7 @@
 
 - request enters `/v1/embeddings`
 - input is normalized to a list
+- optional bounded queueing can briefly delay admission during short bursts
 - proxy performs one upstream Vertex call per input item
 - `asyncio.gather()` preserves order across fan-out responses
 - fixed mode uses `EMBEDDING_MAX_CONCURRENCY`
@@ -55,6 +56,7 @@
 
 - keep the API surface small and explicit
 - prefer deterministic failure over partial success
+- keep queueing short, bounded, and optional
 - never require long-lived Google API keys in GKE
 - avoid leaking prompt or embedding content into logs
 - enforce compatibility with tests, not documentation alone

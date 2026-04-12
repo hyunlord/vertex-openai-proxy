@@ -19,6 +19,9 @@ def test_metrics_endpoint_exposes_runtime_mode_and_basic_gauges() -> None:
     assert "vertex_proxy_runtime_ready 1" in body
     assert 'vertex_proxy_in_flight_requests{endpoint="chat"} 0' in body
     assert 'vertex_proxy_in_flight_requests{endpoint="embeddings"} 0' in body
+    assert 'vertex_proxy_queue_depth{endpoint="chat"} 0' in body
+    assert 'vertex_proxy_queue_depth{endpoint="embeddings"} 0' in body
+    assert "vertex_proxy_queue_timeouts_total" in body
     assert "vertex_proxy_effective_embedding_concurrency" in body
     assert "vertex_proxy_process_cpu_percent" in body
     assert "vertex_proxy_process_rss_mb" in body

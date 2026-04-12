@@ -116,6 +116,14 @@ cp .env.example .env
 - `RUNTIME_HARD_TIMEOUT_RATE`: Hard timeout rate threshold for degraded mode
 - `RUNTIME_HARD_CPU_PERCENT`: Hard CPU pressure threshold for degraded mode
 - `RUNTIME_HARD_RSS_MB`: Hard memory pressure threshold for degraded mode
+- `QUEUE_ENABLED`: Enable optional bounded queueing for short burst smoothing
+- `QUEUE_DISABLE_ON_DEGRADED`: Disable bounded queueing while the service is degraded
+- `QUEUE_POLL_INTERVAL_MS`: Poll interval used while a request waits for bounded queue admission
+- `QUEUE_RETRY_AFTER_SECONDS`: Suggested retry window for shed requests
+- `CHAT_QUEUE_MAX_WAIT_MS`: Maximum wait budget for queued chat requests
+- `CHAT_QUEUE_MAX_DEPTH`: Maximum queued chat requests
+- `EMBEDDINGS_QUEUE_MAX_WAIT_MS`: Maximum wait budget for queued embeddings requests
+- `EMBEDDINGS_QUEUE_MAX_DEPTH`: Maximum queued embeddings requests
 - `CHAT_RETRY_ATTEMPTS`: Retry budget for retry-safe non-stream chat failures
 - `CHAT_RETRY_BACKOFF_MS`: Backoff between chat retries in milliseconds
 - `VERTEX_ACCESS_TOKEN`: Optional manual token override for local debugging
@@ -143,6 +151,14 @@ When service-wide runtime adaptation is enabled, the proxy can protect itself wi
 - degraded mode can apply tighter in-flight caps
 - degraded mode can reject oversized embeddings batches early
 - shed requests return `429` and are counted in `vertex_proxy_request_shed_total`
+
+Optional bounded queueing is also available for short burst smoothing:
+
+- queueing is disabled by default
+- wait budgets stay intentionally short
+- queue depth stays intentionally small
+- degraded mode can disable queueing entirely
+- queued requests that exceed their wait budget return `429`
 
 This keeps the service explainable under pressure:
 - `/readyz` can fail when `READINESS_FAIL_ON_DEGRADED=true`
@@ -343,6 +359,7 @@ It visualizes:
 - request counts and status class breakdown
 - p95 latency and error rates
 - effective embedding concurrency and in-flight requests
+- queue depth and queue timeouts
 - process CPU/RSS and request shedding
 
 ## Harness

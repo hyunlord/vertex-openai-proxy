@@ -163,7 +163,6 @@ async def create_chat_completion_stream(payload: ChatCompletionRequest) -> Async
     retryable_failure = False
     timed_out = False
     auth_failure = False
-    runtime_controller.request_started("chat")
     try:
         async for line in vertex_stream_request("POST", build_chat_url(), body):
             data = _parse_stream_payload(line)
@@ -232,7 +231,6 @@ async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
     retryable_failure = False
     timed_out = False
     auth_failure = False
-    runtime_controller.request_started("chat")
     try:
         response = await _chat_request_with_retry(body)
         retry_attempts = response[1]
