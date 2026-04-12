@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.services.adaptive_concurrency import adaptive_embedding_concurrency
+from app.runtime.controller import runtime_controller
 from app.services.http_client import VertexUpstreamError
 from app.main import app
 
@@ -20,6 +21,7 @@ def test_chat_request_logs_request_id_model_and_latency(
     mock_vertex_json_request: AsyncMock,
     caplog,
 ) -> None:
+    runtime_controller.reset()
     caplog.set_level(logging.INFO, logger="vertex_openai_proxy")
     mock_vertex_json_request.return_value = {
         "choices": [
@@ -45,6 +47,7 @@ def test_chat_request_logs_request_id_model_and_latency(
     assert log_record.request_id == response.headers["x-request-id"]
     assert log_record.model == "google/gemini-2.5-flash"
     assert log_record.mode == "non_stream"
+    assert log_record.runtime_mode in {"normal", "elevated", "degraded"}
     assert log_record.retry_attempts == 0
     assert isinstance(log_record.upstream_latency_ms, float)
 
@@ -54,6 +57,7 @@ def test_embeddings_request_logs_request_id_model_and_latency(
     mock_embed_one: AsyncMock,
     caplog,
 ) -> None:
+    runtime_controller.reset()
     caplog.set_level(logging.INFO, logger="vertex_openai_proxy")
     mock_embed_one.side_effect = [([0.1, 0.2], 0), ([0.3, 0.4], 0)]
 
@@ -70,6 +74,7 @@ def test_embeddings_request_logs_request_id_model_and_latency(
     assert log_record.request_id == response.headers["x-request-id"]
     assert log_record.model == "gemini-embedding-2-preview"
     assert log_record.mode == "batch"
+    assert log_record.runtime_mode in {"normal", "elevated", "degraded"}
     assert log_record.input_count == 2
     assert log_record.fanout_count == 2
     assert log_record.retry_attempts == 0
@@ -83,6 +88,7 @@ def test_embeddings_logs_adaptive_concurrency_fields(
     monkeypatch,
 ) -> None:
     adaptive_embedding_concurrency.reset()
+    runtime_controller.reset()
     caplog.set_level(logging.INFO, logger="vertex_openai_proxy")
     monkeypatch.setattr(settings, "embedding_adaptive_concurrency", True)
     monkeypatch.setattr(settings, "embedding_adaptive_window_size", 20)
@@ -119,6 +125,7 @@ def test_chat_logs_retry_attempts_when_retry_used(
     caplog,
     monkeypatch,
 ) -> None:
+    runtime_controller.reset()
     caplog.set_level(logging.INFO, logger="vertex_openai_proxy")
     monkeypatch.setattr(settings, "chat_retry_attempts", 1)
     monkeypatch.setattr(settings, "chat_retry_backoff_ms", 0)
