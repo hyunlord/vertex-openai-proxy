@@ -30,3 +30,10 @@ def test_gitignore_covers_sensitive_and_maintainer_only_assets() -> None:
     assert ".env" in gitignore
     assert ".vertex-proxy/" in gitignore
     assert "docs/plans/" in gitignore
+
+
+def test_raw_k8s_manifest_uses_runtime_probe_endpoints() -> None:
+    deployment = (PROJECT_ROOT / "k8s/deployment.yaml").read_text()
+
+    assert "path: /livez" in deployment
+    assert "path: /readyz" in deployment
