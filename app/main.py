@@ -12,6 +12,7 @@ from app.vertex_auth import VertexAuthError
 from app.routes.chat import router as chat_router
 from app.routes.embeddings import router as embeddings_router
 from app.routes.health import router as health_router
+from app.routes.metrics import router as metrics_router
 from app.routes.models import router as models_router
 from app.utils.logging import log_exception, reset_request_id, set_request_id
 from app.utils.request_id import generate_request_id
@@ -96,6 +97,7 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 
 app.include_router(health_router)
+app.include_router(metrics_router)
 app.include_router(models_router)
 app.include_router(chat_router)
 app.include_router(embeddings_router)

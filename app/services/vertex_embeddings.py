@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from app.config import settings
+from app.runtime.controller import runtime_controller
 from app.schemas.openai_embeddings import EmbeddingRequest
 from app.services.adaptive_concurrency import adaptive_embedding_concurrency
 from app.services.http_client import (
@@ -82,14 +83,16 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
     started_at = perf_counter()
     upstream_status = 200
     retry_attempts = 0
+    runtime_controller.request_started("embeddings")
     effective_concurrency = adaptive_embedding_concurrency.get_effective_concurrency(
         base=settings.embedding_max_concurrency,
         adaptive_enabled=settings.embedding_adaptive_concurrency,
-        adaptive_max=settings.embedding_adaptive_max_concurrency,
+        adaptive_max=_effective_adaptive_max(),
     )
     success = False
     retryable_failure = False
     timed_out = False
+    auth_failure = False
     try:
         semaphore = asyncio.Semaphore(effective_concurrency)
 
@@ -120,6 +123,7 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
     except VertexUpstreamError as exc:
         upstream_status = exc.status_code
         retryable_failure = is_retryable_upstream_error(exc)
+        auth_failure = exc.status_code in {401, 403}
         raise
     except HTTPException as exc:
         upstream_status = exc.status_code
@@ -135,6 +139,13 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
         raise
     finally:
         request_latency_ms = round((perf_counter() - started_at) * 1000, 3)
+        runtime_mode = runtime_controller.request_finished(
+            endpoint="embeddings",
+            latency_ms=request_latency_ms,
+            retryable_failure=retryable_failure,
+            timed_out=timed_out,
+            auth_failure=auth_failure,
+        )
         adjustment = adaptive_embedding_concurrency.record_outcome(
             latency_ms=request_latency_ms,
             success=success,
@@ -142,7 +153,7 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
             timed_out=timed_out,
             base=settings.embedding_max_concurrency,
             adaptive_enabled=settings.embedding_adaptive_concurrency,
-            adaptive_max=settings.embedding_adaptive_max_concurrency,
+            adaptive_max=_effective_adaptive_max(),
         )
         if adjustment is not None:
             log_event(
@@ -164,6 +175,7 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
             endpoint="/v1/embeddings",
             model=model,
             mode="batch" if len(texts) > 1 else "single",
+            runtime_mode=runtime_mode,
             input_count=len(texts),
             fanout_count=len(texts),
             adaptive_concurrency_enabled=settings.embedding_adaptive_concurrency,
@@ -173,3 +185,14 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
             upstream_status=upstream_status,
             upstream_latency_ms=request_latency_ms,
         )
+
+
+def _effective_adaptive_max() -> int:
+    runtime_mode = runtime_controller.current_mode()
+    if not settings.runtime_adaptive_mode:
+        return settings.embedding_adaptive_max_concurrency
+    if runtime_mode == "degraded":
+        return settings.embedding_max_concurrency
+    if runtime_mode == "elevated":
+        return min(settings.embedding_adaptive_max_concurrency, max(settings.embedding_max_concurrency, 8))
+    return settings.embedding_adaptive_max_concurrency
