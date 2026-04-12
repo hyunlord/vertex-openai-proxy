@@ -29,3 +29,9 @@ Before release rollback or code changes, compare:
 - in-cluster verification
 
 If only `in-cluster` fails, classify it as an infrastructure blocker until proven otherwise.
+
+Typical escalation evidence:
+- failing in-cluster request body or response summary
+- `x-request-id`
+- direct metadata token fetch result from inside the pod
+- captured `vpcServiceControlsUniqueIdentifier`

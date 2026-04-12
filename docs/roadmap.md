@@ -2,34 +2,67 @@
 
 ## Reference Proxy v1
 
+Completed:
+
 - OpenAI-style `chat.completions`
 - OpenAI-style `embeddings`
 - SSE chat streaming
-- model allowlist
-- normalized errors
-- structured logging
+- model allowlist and `/v1/models`
+- normalized OpenAI-style errors
+- structured logging and request correlation
 - compatibility and operations docs
+- proxy-native harness and release gates
 
-## Next
+## Operational Reference v1.5
 
-- richer logging around failure paths
+Completed:
+
+- embedding adaptive concurrency
+- service-wide runtime modes: `normal`, `elevated`, `degraded`
+- `/health`, `/livez`, `/readyz`, `/runtimez`, `/metrics`
+- overload protection with request shedding
+- bounded queue for short burst smoothing
+- Helm chart with optional `ServiceMonitor`
+- Grafana dashboard asset
+- deployment sizing profiles: `small`, `balanced`, `heavy`
+- optional HPA support
+- empirical testing log for live and synthetic validation
+
+## Release Candidate
+
+Next priority:
+
 - CI release hardening
-- smoke checks against a live Vertex environment
-- better Python and curl examples
-- bounded queue empirical tuning and operating guidance
-  - see [bounded-queue.md](bounded-queue.md)
+- `helm lint` and `helm template` verification in an environment with Helm installed
+- stronger Python and curl examples
+- release note and versioning flow
+- `main` integration and release packaging
+
+## Infrastructure-Blocked Validation
+
+These are not application feature gaps. Treat them as environment validation blockers:
+
+- GKE Workload Identity / STS / VPC Service Controls validation
+- in-cluster runtime and metrics validation after policy blockers are resolved
+- VM direct validation with the correct Vertex IAM permissions
+- final end-to-end rollout check for `/livez`, `/readyz`, `/runtimez`, `/metrics`, chat, and embeddings
+
+## Empirical Track
+
+Continue collecting evidence in [empirical-testing.md](empirical-testing.md):
+
+- bounded queue tuning under mixed chat and embeddings load
+- runtime recovery validation: `degraded -> elevated -> normal`
+- profile-specific operating guidance for `small`, `balanced`, and `heavy`
+- live latency and throughput comparisons across model options
 
 ## Production Gateway v2
 
-- retry and backoff policies
-- configurable concurrency limits
+Future expansion:
+
+- richer logging around complex failure paths
 - rate limiting
-- Prometheus metrics
-- Helm chart
 - richer model routing policy
-
-## Later
-
 - broader OpenAI compatibility surface
 - optional caching
 - policy controls and admin-facing configuration

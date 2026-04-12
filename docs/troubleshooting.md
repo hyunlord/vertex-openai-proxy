@@ -119,3 +119,29 @@ Recommended evidence to collect:
 - exact error body
 - `vpcServiceControlsUniqueIdentifier`
 - the result of `python3 scripts/smoke_vm_direct.py` on the ops VM
+
+Useful low-level reproduction from inside the affected pod:
+
+```bash
+kubectl exec -n <namespace> <pod> -- python -c "
+import httpx
+r=httpx.get(
+  'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
+  headers={'Metadata-Flavor':'Google'},
+  timeout=20.0,
+)
+print(r.status_code)
+print(r.text[:1200])
+"
+```
+
+Failing infrastructure pattern:
+- `403`
+- `organization's policy`
+- `vpcServiceControlsUniqueIdentifier`
+
+If that pattern appears, ask the platform team to check:
+- Kubernetes service account to Google service account mapping
+- `roles/iam.workloadIdentityUser` on the mapped Google service account
+- recent VPC Service Controls or org policy changes
+- Cloud Logging entries that match the captured `vpcServiceControlsUniqueIdentifier`
