@@ -27,9 +27,14 @@ class Settings(BaseSettings):
     embedding_adaptive_failure_rate_up_threshold: float = 0.01
     embedding_adaptive_failure_rate_down_threshold: float = 0.10
     runtime_adaptive_mode: bool = False
+    readiness_fail_on_degraded: bool = False
     runtime_window_size: int = 50
     runtime_window_seconds: int = 60
     runtime_recovery_seconds: int = 30
+    runtime_soft_in_flight_chat: int = 50
+    runtime_hard_in_flight_chat: int = 100
+    runtime_soft_in_flight_embeddings: int = 10
+    runtime_hard_in_flight_embeddings: int = 20
     runtime_chat_soft_latency_ms: float = 6000.0
     runtime_chat_hard_latency_ms: float = 12000.0
     runtime_embeddings_soft_latency_ms: float = 4000.0
@@ -38,6 +43,8 @@ class Settings(BaseSettings):
     runtime_hard_retryable_error_rate: float = 0.10
     runtime_soft_timeout_rate: float = 0.01
     runtime_hard_timeout_rate: float = 0.05
+    runtime_hard_cpu_percent: float = 90.0
+    runtime_hard_rss_mb: float = 1024.0
     chat_retry_attempts: int = 1
     chat_retry_backoff_ms: int = 200
     vertex_access_token: str | None = None

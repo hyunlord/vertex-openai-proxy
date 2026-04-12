@@ -19,6 +19,9 @@ Vertex AI on GKE works best with Workload Identity and short-lived Google access
 ## Supported Endpoints
 
 - `GET /health`
+- `GET /livez`
+- `GET /readyz`
+- `GET /runtimez`
 - `GET /metrics`
 - `GET /v1/models`
 - `POST /v1/chat/completions`
@@ -90,9 +93,14 @@ cp .env.example .env
 - `EMBEDDING_ADAPTIVE_FAILURE_RATE_UP_THRESHOLD`: Maximum retryable failure rate for scale-up
 - `EMBEDDING_ADAPTIVE_FAILURE_RATE_DOWN_THRESHOLD`: Retryable failure rate that triggers scale-down
 - `RUNTIME_ADAPTIVE_MODE`: Enable service-wide runtime mode awareness across chat and embeddings
+- `READINESS_FAIL_ON_DEGRADED`: Return `503` from `/readyz` while in degraded mode
 - `RUNTIME_WINDOW_SIZE`: Number of recent requests kept in the shared runtime window
 - `RUNTIME_WINDOW_SECONDS`: Maximum age of the shared runtime window
 - `RUNTIME_RECOVERY_SECONDS`: Required stable interval before recovering from elevated or degraded mode
+- `RUNTIME_SOFT_IN_FLIGHT_CHAT`: Soft in-flight chat threshold for elevated mode
+- `RUNTIME_HARD_IN_FLIGHT_CHAT`: Hard in-flight chat threshold for degraded mode
+- `RUNTIME_SOFT_IN_FLIGHT_EMBEDDINGS`: Soft in-flight embeddings threshold for elevated mode
+- `RUNTIME_HARD_IN_FLIGHT_EMBEDDINGS`: Hard in-flight embeddings threshold for degraded mode
 - `RUNTIME_CHAT_SOFT_LATENCY_MS`: Soft p95 chat latency threshold for entering elevated mode
 - `RUNTIME_CHAT_HARD_LATENCY_MS`: Hard p95 chat latency threshold for entering degraded mode
 - `RUNTIME_EMBEDDINGS_SOFT_LATENCY_MS`: Soft p95 embeddings latency threshold for entering elevated mode
@@ -101,18 +109,26 @@ cp .env.example .env
 - `RUNTIME_HARD_RETRYABLE_ERROR_RATE`: Hard retryable failure rate threshold for degraded mode
 - `RUNTIME_SOFT_TIMEOUT_RATE`: Soft timeout rate threshold for elevated mode
 - `RUNTIME_HARD_TIMEOUT_RATE`: Hard timeout rate threshold for degraded mode
+- `RUNTIME_HARD_CPU_PERCENT`: Hard CPU pressure threshold for degraded mode
+- `RUNTIME_HARD_RSS_MB`: Hard memory pressure threshold for degraded mode
 - `CHAT_RETRY_ATTEMPTS`: Retry budget for retry-safe non-stream chat failures
 - `CHAT_RETRY_BACKOFF_MS`: Backoff between chat retries in milliseconds
 - `VERTEX_ACCESS_TOKEN`: Optional manual token override for local debugging
 
 ## Runtime Health And Metrics
 
-The proxy now exposes lightweight service-wide runtime state:
+The proxy now exposes service-wide runtime state for both humans and automation:
 
 - `/health`
-  - returns current runtime mode and in-flight request counts
+  - compatibility endpoint with a summarized runtime payload
+- `/livez`
+  - process liveness only
+- `/readyz`
+  - readiness decision that can optionally fail on degraded mode
+- `/runtimez`
+  - detailed runtime snapshot including reasons, recent pressure, effective limits, and mode transitions
 - `/metrics`
-  - exposes Prometheus-friendly gauges for runtime mode, recent request health, and process RSS
+  - exposes Prometheus-friendly gauges for runtime mode, request health, retries, in-flight counts, adaptive embedding concurrency, and process pressure
 
 Service-wide runtime mode is:
 

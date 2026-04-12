@@ -18,6 +18,13 @@ def test_runtime_policy_settings_exist_with_conservative_defaults(monkeypatch) -
     monkeypatch.delenv("EMBEDDING_ADAPTIVE_LATENCY_DOWN_THRESHOLD_MS", raising=False)
     monkeypatch.delenv("EMBEDDING_ADAPTIVE_FAILURE_RATE_UP_THRESHOLD", raising=False)
     monkeypatch.delenv("EMBEDDING_ADAPTIVE_FAILURE_RATE_DOWN_THRESHOLD", raising=False)
+    monkeypatch.delenv("READINESS_FAIL_ON_DEGRADED", raising=False)
+    monkeypatch.delenv("RUNTIME_SOFT_IN_FLIGHT_CHAT", raising=False)
+    monkeypatch.delenv("RUNTIME_HARD_IN_FLIGHT_CHAT", raising=False)
+    monkeypatch.delenv("RUNTIME_SOFT_IN_FLIGHT_EMBEDDINGS", raising=False)
+    monkeypatch.delenv("RUNTIME_HARD_IN_FLIGHT_EMBEDDINGS", raising=False)
+    monkeypatch.delenv("RUNTIME_HARD_CPU_PERCENT", raising=False)
+    monkeypatch.delenv("RUNTIME_HARD_RSS_MB", raising=False)
     monkeypatch.delenv("CHAT_RETRY_ATTEMPTS", raising=False)
     monkeypatch.delenv("CHAT_RETRY_BACKOFF_MS", raising=False)
 
@@ -38,5 +45,12 @@ def test_runtime_policy_settings_exist_with_conservative_defaults(monkeypatch) -
     assert settings.embedding_adaptive_latency_down_threshold_ms == 8000.0
     assert settings.embedding_adaptive_failure_rate_up_threshold == 0.01
     assert settings.embedding_adaptive_failure_rate_down_threshold == 0.10
+    assert settings.readiness_fail_on_degraded is False
+    assert settings.runtime_soft_in_flight_chat == 50
+    assert settings.runtime_hard_in_flight_chat == 100
+    assert settings.runtime_soft_in_flight_embeddings == 10
+    assert settings.runtime_hard_in_flight_embeddings == 20
+    assert settings.runtime_hard_cpu_percent == 90.0
+    assert settings.runtime_hard_rss_mb == 1024.0
     assert settings.chat_retry_attempts == 1
     assert settings.chat_retry_backoff_ms == 200

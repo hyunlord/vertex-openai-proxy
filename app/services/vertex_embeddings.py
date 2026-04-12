@@ -87,7 +87,7 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
     effective_concurrency = adaptive_embedding_concurrency.get_effective_concurrency(
         base=settings.embedding_max_concurrency,
         adaptive_enabled=settings.embedding_adaptive_concurrency,
-        adaptive_max=_effective_adaptive_max(),
+        adaptive_max=effective_embedding_adaptive_max(),
     )
     success = False
     retryable_failure = False
@@ -142,6 +142,8 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
         runtime_mode = runtime_controller.request_finished(
             endpoint="embeddings",
             latency_ms=request_latency_ms,
+            status_code=upstream_status,
+            retry_attempts=retry_attempts,
             retryable_failure=retryable_failure,
             timed_out=timed_out,
             auth_failure=auth_failure,
@@ -153,7 +155,7 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
             timed_out=timed_out,
             base=settings.embedding_max_concurrency,
             adaptive_enabled=settings.embedding_adaptive_concurrency,
-            adaptive_max=_effective_adaptive_max(),
+            adaptive_max=effective_embedding_adaptive_max(),
         )
         if adjustment is not None:
             log_event(
@@ -187,7 +189,7 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
         )
 
 
-def _effective_adaptive_max() -> int:
+def effective_embedding_adaptive_max() -> int:
     runtime_mode = runtime_controller.current_mode()
     if not settings.runtime_adaptive_mode:
         return settings.embedding_adaptive_max_concurrency
