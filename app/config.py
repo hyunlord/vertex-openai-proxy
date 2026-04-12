@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     runtime_hard_in_flight_chat: int = 100
     runtime_soft_in_flight_embeddings: int = 10
     runtime_hard_in_flight_embeddings: int = 20
+    chat_max_in_flight_requests: int = 200
+    embeddings_max_in_flight_requests: int = 40
+    runtime_degraded_chat_max_in_flight: int = 20
+    runtime_degraded_embeddings_max_in_flight: int = 4
+    runtime_degraded_max_embedding_inputs: int = 16
     runtime_chat_soft_latency_ms: float = 6000.0
     runtime_chat_hard_latency_ms: float = 12000.0
     runtime_embeddings_soft_latency_ms: float = 4000.0

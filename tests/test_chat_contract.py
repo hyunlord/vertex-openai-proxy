@@ -10,6 +10,7 @@ from app.schemas.openai_chat import ChatCompletionRequest
 from app.services.http_client import VertexUpstreamError
 from app.services.vertex_chat import create_chat_completion
 from app.config import settings
+from app.runtime.controller import runtime_controller
 
 
 client = TestClient(app)
@@ -98,6 +99,44 @@ def test_chat_completion_rejects_malformed_messages() -> None:
     assert response.status_code == 422
     payload = response.json()
     assert payload["error"]["type"] == "invalid_request_error"
+
+
+@patch("app.services.vertex_chat.vertex_json_request", new_callable=AsyncMock)
+def test_chat_completion_sheds_requests_when_degraded_chat_cap_is_hit(
+    mock_vertex_json_request: AsyncMock,
+    monkeypatch,
+) -> None:
+    runtime_controller.reset()
+    monkeypatch.setattr(settings, "runtime_adaptive_mode", True)
+    monkeypatch.setattr(settings, "runtime_soft_retryable_error_rate", 0.5)
+    monkeypatch.setattr(settings, "runtime_hard_retryable_error_rate", 0.1)
+    monkeypatch.setattr(settings, "runtime_degraded_chat_max_in_flight", 0)
+
+    runtime_controller.request_started("chat")
+    runtime_controller.request_finished(
+        endpoint="chat",
+        latency_ms=100.0,
+        status_code=503,
+        retry_attempts=1,
+        retryable_failure=True,
+        timed_out=False,
+        auth_failure=False,
+    )
+
+    response = client.post(
+        "/v1/chat/completions",
+        headers=AUTH,
+        json={
+            "model": "google/gemini-2.5-flash",
+            "messages": [{"role": "user", "content": "hello"}],
+        },
+    )
+
+    assert response.status_code == 429
+    payload = response.json()
+    assert payload["error"]["type"] == "rate_limit_error"
+    assert "degraded-mode chat in-flight requests exceeded" in payload["error"]["message"]
+    assert mock_vertex_json_request.await_count == 0
 
 
 @pytest.mark.asyncio

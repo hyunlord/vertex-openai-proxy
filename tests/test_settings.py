@@ -23,6 +23,11 @@ def test_runtime_policy_settings_exist_with_conservative_defaults(monkeypatch) -
     monkeypatch.delenv("RUNTIME_HARD_IN_FLIGHT_CHAT", raising=False)
     monkeypatch.delenv("RUNTIME_SOFT_IN_FLIGHT_EMBEDDINGS", raising=False)
     monkeypatch.delenv("RUNTIME_HARD_IN_FLIGHT_EMBEDDINGS", raising=False)
+    monkeypatch.delenv("CHAT_MAX_IN_FLIGHT_REQUESTS", raising=False)
+    monkeypatch.delenv("EMBEDDINGS_MAX_IN_FLIGHT_REQUESTS", raising=False)
+    monkeypatch.delenv("RUNTIME_DEGRADED_CHAT_MAX_IN_FLIGHT", raising=False)
+    monkeypatch.delenv("RUNTIME_DEGRADED_EMBEDDINGS_MAX_IN_FLIGHT", raising=False)
+    monkeypatch.delenv("RUNTIME_DEGRADED_MAX_EMBEDDING_INPUTS", raising=False)
     monkeypatch.delenv("RUNTIME_HARD_CPU_PERCENT", raising=False)
     monkeypatch.delenv("RUNTIME_HARD_RSS_MB", raising=False)
     monkeypatch.delenv("CHAT_RETRY_ATTEMPTS", raising=False)
@@ -50,6 +55,11 @@ def test_runtime_policy_settings_exist_with_conservative_defaults(monkeypatch) -
     assert settings.runtime_hard_in_flight_chat == 100
     assert settings.runtime_soft_in_flight_embeddings == 10
     assert settings.runtime_hard_in_flight_embeddings == 20
+    assert settings.chat_max_in_flight_requests == 200
+    assert settings.embeddings_max_in_flight_requests == 40
+    assert settings.runtime_degraded_chat_max_in_flight == 20
+    assert settings.runtime_degraded_embeddings_max_in_flight == 4
+    assert settings.runtime_degraded_max_embedding_inputs == 16
     assert settings.runtime_hard_cpu_percent == 90.0
     assert settings.runtime_hard_rss_mb == 1024.0
     assert settings.chat_retry_attempts == 1

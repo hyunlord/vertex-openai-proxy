@@ -67,3 +67,31 @@ def test_runtime_controller_enters_degraded_on_hard_failure_rate(monkeypatch) ->
     snapshot = runtime_controller.snapshot()
     assert snapshot["mode_transitions"]["elevated->degraded"] == 0 or snapshot["mode_transitions"]["normal->degraded"] >= 1
     assert "retryable_error_rate_high" in snapshot["reasons"]
+
+
+def test_runtime_controller_tracks_request_shed_reasons(monkeypatch) -> None:
+    runtime_controller.reset()
+    monkeypatch.setattr(settings, "runtime_adaptive_mode", True)
+    monkeypatch.setattr(settings, "runtime_degraded_max_embedding_inputs", 2)
+    monkeypatch.setattr(settings, "runtime_soft_retryable_error_rate", 0.5)
+    monkeypatch.setattr(settings, "runtime_hard_retryable_error_rate", 0.1)
+    now = time()
+
+    for step in range(2):
+        runtime_controller.request_started("chat")
+        runtime_controller.request_finished(
+            endpoint="chat",
+            latency_ms=100.0,
+            status_code=503,
+            retry_attempts=1,
+            retryable_failure=True,
+            timed_out=False,
+            auth_failure=False,
+            now=now + step,
+        )
+
+    rejection = runtime_controller.admission_check(endpoint="embeddings", input_count=3)
+    assert rejection is not None
+    assert rejection.reason == "degraded_input_count"
+    snapshot = runtime_controller.snapshot()
+    assert snapshot["request_shed"]["embeddings:degraded_input_count"] == 1
