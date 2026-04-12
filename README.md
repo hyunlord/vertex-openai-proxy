@@ -50,6 +50,8 @@ See [architecture](docs/architecture.md), [compatibility](docs/compatibility.md)
 
 For real-world tuning and model behavior history, see the running [empirical testing log](docs/empirical-testing.md). Future live model tests should be appended there instead of being kept only in ad-hoc notes.
 
+Release history is tracked in [CHANGELOG.md](CHANGELOG.md).
+
 ## Runtime Policy
 
 This proxy prefers correctness over speculative batching.
