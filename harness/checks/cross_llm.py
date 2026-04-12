@@ -20,9 +20,15 @@ def build_retry_payload(review: CrossLLMReviewResult) -> dict[str, Any]:
 
 
 def build_cross_llm_result(*, issues: list[str], suggestions: list[str], verdict: str, score: int) -> dict[str, Any]:
-    return CrossLLMReviewResult(
+    review = CrossLLMReviewResult(
         issues=issues,
         suggestions=suggestions,
         verdict=verdict,
         score=score,
-    ).__dict__
+    )
+    return {
+        "issues": review.issues,
+        "suggestions": review.suggestions,
+        "verdict": review.verdict,
+        "score": review.score,
+    }

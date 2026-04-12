@@ -259,7 +259,7 @@ Basic install:
 helm upgrade --install vertex-openai-proxy ./charts/vertex-openai-proxy \
   --set image.repository=your-registry/vertex-openai-proxy \
   --set image.tag=latest \
-  --set auth.internalBearerToken=change-me \
+  --set auth.internalBearerToken=replace-with-a-random-token \
   --set config.vertexProjectId=your-gcp-project-id
 ```
 
@@ -270,6 +270,8 @@ helm upgrade --install vertex-openai-proxy ./charts/vertex-openai-proxy \
   --set auth.existingSecret=vertex-openai-proxy-auth \
   --set auth.existingSecretKey=internal-bearer-token
 ```
+
+The chart fails closed if neither `auth.existingSecret` nor `auth.internalBearerToken` is set.
 
 Enable `ServiceMonitor` in Prometheus Operator environments:
 
@@ -300,7 +302,7 @@ It visualizes:
 
 ## Harness
 
-The repository includes a proxy-native verification harness under [`.vertex-proxy`](.vertex-proxy) and [`harness/`](harness).
+The repository includes a proxy-native verification harness under [`harness/`](harness).
 
 Primary entrypoints:
 - `bash scripts/verify_quick.sh`
