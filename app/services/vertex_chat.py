@@ -21,6 +21,7 @@ from app.schemas.openai_stream import (
     ChatCompletionChunk,
     ChatCompletionChunkChoice,
 )
+from app.runtime.controller import runtime_controller
 from app.services.http_client import (
     VertexUpstreamError,
     is_retryable_upstream_error,
@@ -159,6 +160,10 @@ async def create_chat_completion_stream(payload: ChatCompletionRequest) -> Async
     saw_done = False
     started_at = perf_counter()
     upstream_status = 200
+    retryable_failure = False
+    timed_out = False
+    auth_failure = False
+    runtime_controller.request_started("chat")
     try:
         async for line in vertex_stream_request("POST", build_chat_url(), body):
             data = _parse_stream_payload(line)
@@ -182,21 +187,36 @@ async def create_chat_completion_stream(payload: ChatCompletionRequest) -> Async
 
             normalized_chunk = normalize_chat_stream_chunk(upstream_chunk, model=payload.model)
             yield f"data: {json.dumps(normalized_chunk, separators=(',', ':'))}\n\n"
+    except VertexUpstreamError as exc:
+        upstream_status = exc.status_code
+        retryable_failure = is_retryable_upstream_error(exc)
+        auth_failure = exc.status_code in {401, 403}
+        raise
     except HTTPException as exc:
         upstream_status = exc.status_code
+        timed_out = exc.status_code == 504
         raise
     except Exception:
         upstream_status = 500
         raise
     finally:
+        request_latency_ms = round((perf_counter() - started_at) * 1000, 3)
+        runtime_mode = runtime_controller.request_finished(
+            endpoint="chat",
+            latency_ms=request_latency_ms,
+            retryable_failure=retryable_failure,
+            timed_out=timed_out,
+            auth_failure=auth_failure,
+        )
         log_event(
             "request_completed",
             operation="chat",
             endpoint="/v1/chat/completions",
             model=payload.model,
             mode="stream",
+            runtime_mode=runtime_mode,
             upstream_status=upstream_status,
-            upstream_latency_ms=round((perf_counter() - started_at) * 1000, 3),
+            upstream_latency_ms=request_latency_ms,
         )
 
     yield "data: [DONE]\n\n"
@@ -207,6 +227,10 @@ async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
     started_at = perf_counter()
     upstream_status = 200
     retry_attempts = 0
+    retryable_failure = False
+    timed_out = False
+    auth_failure = False
+    runtime_controller.request_started("chat")
     try:
         response = await _chat_request_with_retry(body)
         retry_attempts = response[1]
@@ -214,28 +238,49 @@ async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
         if not isinstance(response, dict):
             raise HTTPException(status_code=502, detail="Vertex chat response must be a JSON object")
         return normalize_chat_completion_response(response, model=payload.model)
+    except VertexUpstreamError as exc:
+        upstream_status = exc.status_code
+        retryable_failure = is_retryable_upstream_error(exc)
+        auth_failure = exc.status_code in {401, 403}
+        raise
     except HTTPException as exc:
         upstream_status = exc.status_code
+        timed_out = exc.status_code == 504
         raise
     except Exception:
         upstream_status = 500
         raise
     finally:
+        request_latency_ms = round((perf_counter() - started_at) * 1000, 3)
+        runtime_mode = runtime_controller.request_finished(
+            endpoint="chat",
+            latency_ms=request_latency_ms,
+            retryable_failure=retryable_failure,
+            timed_out=timed_out,
+            auth_failure=auth_failure,
+        )
         log_event(
             "request_completed",
             operation="chat",
             endpoint="/v1/chat/completions",
             model=payload.model,
             mode="non_stream",
+            runtime_mode=runtime_mode,
             retry_attempts=retry_attempts,
             upstream_status=upstream_status,
-            upstream_latency_ms=round((perf_counter() - started_at) * 1000, 3),
+            upstream_latency_ms=request_latency_ms,
         )
 
 
 async def _chat_request_with_retry(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
     attempts = 0
-    max_attempts = settings.chat_retry_attempts + 1
+    runtime_mode = runtime_controller.current_mode()
+    if settings.runtime_adaptive_mode and runtime_mode == "degraded":
+        max_attempts = 1
+    elif settings.runtime_adaptive_mode and runtime_mode == "elevated":
+        max_attempts = max(1, settings.chat_retry_attempts)
+    else:
+        max_attempts = settings.chat_retry_attempts + 1
     while True:
         try:
             response = await vertex_json_request("POST", build_chat_url(), body)

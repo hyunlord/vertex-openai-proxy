@@ -19,6 +19,7 @@ Vertex AI on GKE works best with Workload Identity and short-lived Google access
 ## Supported Endpoints
 
 - `GET /health`
+- `GET /metrics`
 - `GET /v1/models`
 - `POST /v1/chat/completions`
 - `POST /v1/embeddings`
@@ -88,9 +89,39 @@ cp .env.example .env
 - `EMBEDDING_ADAPTIVE_LATENCY_DOWN_THRESHOLD_MS`: Unhealthy p95 latency threshold for scale-down
 - `EMBEDDING_ADAPTIVE_FAILURE_RATE_UP_THRESHOLD`: Maximum retryable failure rate for scale-up
 - `EMBEDDING_ADAPTIVE_FAILURE_RATE_DOWN_THRESHOLD`: Retryable failure rate that triggers scale-down
+- `RUNTIME_ADAPTIVE_MODE`: Enable service-wide runtime mode awareness across chat and embeddings
+- `RUNTIME_WINDOW_SIZE`: Number of recent requests kept in the shared runtime window
+- `RUNTIME_WINDOW_SECONDS`: Maximum age of the shared runtime window
+- `RUNTIME_RECOVERY_SECONDS`: Required stable interval before recovering from elevated or degraded mode
+- `RUNTIME_CHAT_SOFT_LATENCY_MS`: Soft p95 chat latency threshold for entering elevated mode
+- `RUNTIME_CHAT_HARD_LATENCY_MS`: Hard p95 chat latency threshold for entering degraded mode
+- `RUNTIME_EMBEDDINGS_SOFT_LATENCY_MS`: Soft p95 embeddings latency threshold for entering elevated mode
+- `RUNTIME_EMBEDDINGS_HARD_LATENCY_MS`: Hard p95 embeddings latency threshold for entering degraded mode
+- `RUNTIME_SOFT_RETRYABLE_ERROR_RATE`: Soft retryable failure rate threshold for elevated mode
+- `RUNTIME_HARD_RETRYABLE_ERROR_RATE`: Hard retryable failure rate threshold for degraded mode
+- `RUNTIME_SOFT_TIMEOUT_RATE`: Soft timeout rate threshold for elevated mode
+- `RUNTIME_HARD_TIMEOUT_RATE`: Hard timeout rate threshold for degraded mode
 - `CHAT_RETRY_ATTEMPTS`: Retry budget for retry-safe non-stream chat failures
 - `CHAT_RETRY_BACKOFF_MS`: Backoff between chat retries in milliseconds
 - `VERTEX_ACCESS_TOKEN`: Optional manual token override for local debugging
+
+## Runtime Health And Metrics
+
+The proxy now exposes lightweight service-wide runtime state:
+
+- `/health`
+  - returns current runtime mode and in-flight request counts
+- `/metrics`
+  - exposes Prometheus-friendly gauges for runtime mode, recent request health, and process RSS
+
+Service-wide runtime mode is:
+
+- `normal`
+- `elevated`
+- `degraded`
+
+When `RUNTIME_ADAPTIVE_MODE=true`, chat and embeddings can react conservatively to that mode while
+still preserving request correctness semantics.
 
 ## Verification Paths
 
