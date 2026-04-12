@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vertex-openai-proxy.fullname" . }}
+  labels:
+    {{- include "vertex-openai-proxy.labels" . | nindent 4 }}
+data:
+  VERTEX_PROJECT_ID: {{ .Values.config.vertexProjectId | quote }}
+  VERTEX_CHAT_LOCATION: {{ .Values.config.vertexChatLocation | quote }}
+  VERTEX_EMBEDDING_LOCATION: {{ .Values.config.vertexEmbeddingLocation | quote }}
+  VERTEX_CHAT_MODEL: {{ .Values.config.vertexChatModel | quote }}
+  VERTEX_EMBEDDING_MODEL: {{ .Values.config.vertexEmbeddingModel | quote }}
+  REQUEST_TIMEOUT_SECONDS: {{ .Values.config.requestTimeoutSeconds | quote }}
+  EMBEDDING_MAX_CONCURRENCY: {{ .Values.runtime.embedding.maxConcurrency | quote }}
+  EMBEDDING_MAX_INPUTS_PER_REQUEST: {{ .Values.runtime.embedding.maxInputsPerRequest | quote }}
+  EMBEDDING_RETRY_ATTEMPTS: {{ .Values.runtime.embedding.retryAttempts | quote }}
+  EMBEDDING_RETRY_BACKOFF_MS: {{ .Values.runtime.embedding.retryBackoffMs | quote }}
+  EMBEDDING_ADAPTIVE_CONCURRENCY: {{ .Values.runtime.embedding.adaptive.enabled | quote }}
+  EMBEDDING_ADAPTIVE_MAX_CONCURRENCY: {{ .Values.runtime.embedding.adaptive.maxConcurrency | quote }}
+  EMBEDDING_ADAPTIVE_WINDOW_SIZE: {{ .Values.runtime.embedding.adaptive.windowSize | quote }}
+  EMBEDDING_ADAPTIVE_WINDOW_SECONDS: {{ .Values.runtime.embedding.adaptive.windowSeconds | quote }}
+  EMBEDDING_ADAPTIVE_COOLDOWN_SECONDS: {{ .Values.runtime.embedding.adaptive.cooldownSeconds | quote }}
+  EMBEDDING_ADAPTIVE_MIN_SAMPLES: {{ .Values.runtime.embedding.adaptive.minSamples | quote }}
+  EMBEDDING_ADAPTIVE_LATENCY_UP_THRESHOLD_MS: {{ .Values.runtime.embedding.adaptive.latencyUpThresholdMs | quote }}
+  EMBEDDING_ADAPTIVE_LATENCY_DOWN_THRESHOLD_MS: {{ .Values.runtime.embedding.adaptive.latencyDownThresholdMs | quote }}
+  EMBEDDING_ADAPTIVE_FAILURE_RATE_UP_THRESHOLD: {{ .Values.runtime.embedding.adaptive.failureRateUpThreshold | quote }}
+  EMBEDDING_ADAPTIVE_FAILURE_RATE_DOWN_THRESHOLD: {{ .Values.runtime.embedding.adaptive.failureRateDownThreshold | quote }}
+  RUNTIME_ADAPTIVE_MODE: {{ .Values.runtime.service.adaptiveMode | quote }}
+  READINESS_FAIL_ON_DEGRADED: {{ .Values.runtime.service.readinessFailOnDegraded | quote }}
+  RUNTIME_WINDOW_SIZE: {{ .Values.runtime.service.windowSize | quote }}
+  RUNTIME_WINDOW_SECONDS: {{ .Values.runtime.service.windowSeconds | quote }}
+  RUNTIME_RECOVERY_SECONDS: {{ .Values.runtime.service.recoverySeconds | quote }}
+  RUNTIME_SOFT_IN_FLIGHT_CHAT: {{ .Values.runtime.service.softInFlightChat | quote }}
+  RUNTIME_HARD_IN_FLIGHT_CHAT: {{ .Values.runtime.service.hardInFlightChat | quote }}
+  RUNTIME_SOFT_IN_FLIGHT_EMBEDDINGS: {{ .Values.runtime.service.softInFlightEmbeddings | quote }}
+  RUNTIME_HARD_IN_FLIGHT_EMBEDDINGS: {{ .Values.runtime.service.hardInFlightEmbeddings | quote }}
+  CHAT_MAX_IN_FLIGHT_REQUESTS: {{ .Values.runtime.service.chatMaxInFlightRequests | quote }}
+  EMBEDDINGS_MAX_IN_FLIGHT_REQUESTS: {{ .Values.runtime.service.embeddingsMaxInFlightRequests | quote }}
+  RUNTIME_DEGRADED_CHAT_MAX_IN_FLIGHT: {{ .Values.runtime.service.degradedChatMaxInFlight | quote }}
+  RUNTIME_DEGRADED_EMBEDDINGS_MAX_IN_FLIGHT: {{ .Values.runtime.service.degradedEmbeddingsMaxInFlight | quote }}
+  RUNTIME_DEGRADED_MAX_EMBEDDING_INPUTS: {{ .Values.runtime.service.degradedMaxEmbeddingInputs | quote }}
+  RUNTIME_CHAT_SOFT_LATENCY_MS: {{ .Values.runtime.service.chatSoftLatencyMs | quote }}
+  RUNTIME_CHAT_HARD_LATENCY_MS: {{ .Values.runtime.service.chatHardLatencyMs | quote }}
+  RUNTIME_EMBEDDINGS_SOFT_LATENCY_MS: {{ .Values.runtime.service.embeddingsSoftLatencyMs | quote }}
+  RUNTIME_EMBEDDINGS_HARD_LATENCY_MS: {{ .Values.runtime.service.embeddingsHardLatencyMs | quote }}
+  RUNTIME_SOFT_RETRYABLE_ERROR_RATE: {{ .Values.runtime.service.softRetryableErrorRate | quote }}
+  RUNTIME_HARD_RETRYABLE_ERROR_RATE: {{ .Values.runtime.service.hardRetryableErrorRate | quote }}
+  RUNTIME_SOFT_TIMEOUT_RATE: {{ .Values.runtime.service.softTimeoutRate | quote }}
+  RUNTIME_HARD_TIMEOUT_RATE: {{ .Values.runtime.service.hardTimeoutRate | quote }}
+  RUNTIME_HARD_CPU_PERCENT: {{ .Values.runtime.service.hardCpuPercent | quote }}
+  RUNTIME_HARD_RSS_MB: {{ .Values.runtime.service.hardRssMb | quote }}
+  CHAT_RETRY_ATTEMPTS: {{ .Values.runtime.chat.retryAttempts | quote }}
+  CHAT_RETRY_BACKOFF_MS: {{ .Values.runtime.chat.retryBackoffMs | quote }}
