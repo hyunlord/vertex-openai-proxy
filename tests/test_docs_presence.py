@@ -9,6 +9,7 @@ def test_harness_docs_exist() -> None:
         "CHANGELOG.md",
         "docs/alerts.md",
         "docs/harness.md",
+        "docs/private-handoff.md",
         "docs/release.md",
         "docs/runbook.md",
         "docs/operations-transition.md",
@@ -50,3 +51,12 @@ def test_alerts_cover_runtime_and_shedding_metrics() -> None:
     assert "vertex_proxy_runtime_mode" in alerts
     assert "vertex_proxy_request_shed_total" in alerts
     assert "p95" in alerts
+
+
+def test_private_handoff_doc_covers_infra_boundary() -> None:
+    handoff = (PROJECT_ROOT / "docs" / "private-handoff.md").read_text()
+
+    assert "Argo CD" in handoff or "Flux" in handoff or "Helm release" in handoff
+    assert "INTERNAL_BEARER_TOKEN" in handoff
+    assert "Workload Identity" in handoff
+    assert "private" in handoff.lower()
