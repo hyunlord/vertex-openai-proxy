@@ -1,0 +1,28 @@
+profile: balanced
+
+replicaCount: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
+
+runtime:
+  embedding:
+    adaptive:
+      enabled: true
+  service:
+    adaptiveMode: true
+  queue:
+    enabled: true
+    chatMaxWaitMs: 200
+    chatMaxDepth: 8
+    embeddingsMaxWaitMs: 1000
+    embeddingsMaxDepth: 4
+
+prometheus:
+  serviceMonitor:
+    enabled: true
+

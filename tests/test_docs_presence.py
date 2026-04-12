@@ -12,3 +12,12 @@ def test_harness_docs_exist() -> None:
         "docs/operations-transition.md",
     ]:
         assert (PROJECT_ROOT / relative_path).exists()
+
+
+def test_helm_example_values_exist() -> None:
+    for relative_path in [
+        "charts/vertex-openai-proxy/examples/values-small.yaml",
+        "charts/vertex-openai-proxy/examples/values-balanced-hpa.yaml",
+        "charts/vertex-openai-proxy/examples/values-heavy-ingestion.yaml",
+    ]:
+        assert (PROJECT_ROOT / relative_path).exists()

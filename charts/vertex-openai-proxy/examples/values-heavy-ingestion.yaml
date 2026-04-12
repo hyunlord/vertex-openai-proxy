@@ -1,0 +1,31 @@
+profile: heavy
+
+replicaCount: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 65
+  targetMemoryUtilizationPercentage: 70
+
+runtime:
+  embedding:
+    maxConcurrency: 12
+    adaptive:
+      enabled: true
+      maxConcurrency: 16
+  service:
+    adaptiveMode: true
+    embeddingsMaxInFlightRequests: 48
+  queue:
+    enabled: true
+    chatMaxWaitMs: 300
+    chatMaxDepth: 12
+    embeddingsMaxWaitMs: 1500
+    embeddingsMaxDepth: 6
+
+prometheus:
+  serviceMonitor:
+    enabled: true
+
