@@ -11,7 +11,7 @@ data:
   VERTEX_CHAT_MODEL: {{ .Values.config.vertexChatModel | quote }}
   VERTEX_EMBEDDING_MODEL: {{ .Values.config.vertexEmbeddingModel | quote }}
   REQUEST_TIMEOUT_SECONDS: {{ .Values.config.requestTimeoutSeconds | quote }}
-  EMBEDDING_MAX_CONCURRENCY: {{ .Values.runtime.embedding.maxConcurrency | quote }}
+  EMBEDDING_MAX_CONCURRENCY: {{ include "vertex-openai-proxy.embeddingMaxConcurrency" . | quote }}
   EMBEDDING_MAX_INPUTS_PER_REQUEST: {{ .Values.runtime.embedding.maxInputsPerRequest | quote }}
   EMBEDDING_RETRY_ATTEMPTS: {{ .Values.runtime.embedding.retryAttempts | quote }}
   EMBEDDING_RETRY_BACKOFF_MS: {{ .Values.runtime.embedding.retryBackoffMs | quote }}

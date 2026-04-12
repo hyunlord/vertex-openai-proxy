@@ -1,4 +1,5 @@
 replicaCount: 1
+profile: balanced
 
 image:
   repository: your-registry/vertex-openai-proxy
@@ -20,6 +21,38 @@ podLabels: {}
 service:
   type: ClusterIP
   port: 8080
+
+profiles:
+  small:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    runtime:
+      embeddingMaxConcurrency: 4
+  balanced:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+    runtime:
+      embeddingMaxConcurrency: 8
+  heavy:
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+    runtime:
+      embeddingMaxConcurrency: 12
 
 resources: {}
 
@@ -43,7 +76,7 @@ config:
 
 runtime:
   embedding:
-    maxConcurrency: 4
+    maxConcurrency: null
     maxInputsPerRequest: 64
     retryAttempts: 1
     retryBackoffMs: 200
@@ -96,6 +129,14 @@ probes:
     path: /readyz
     initialDelaySeconds: 5
     periodSeconds: 10
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior: {}
 
 prometheus:
   serviceMonitor:

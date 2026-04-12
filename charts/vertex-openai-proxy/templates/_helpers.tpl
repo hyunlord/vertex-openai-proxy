@@ -42,3 +42,30 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- printf "%s-auth" (include "vertex-openai-proxy.fullname" .) -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "vertex-openai-proxy.selectedProfile" -}}
+{{- $profileName := default "balanced" .Values.profile -}}
+{{- $profile := index .Values.profiles $profileName -}}
+{{- if not $profile -}}
+{{- fail (printf "Unknown profile %q. Expected one of: small, balanced, heavy." $profileName) -}}
+{{- end -}}
+{{- toYaml $profile -}}
+{{- end -}}
+
+{{- define "vertex-openai-proxy.resources" -}}
+{{- $profile := include "vertex-openai-proxy.selectedProfile" . | fromYaml -}}
+{{- if .Values.resources -}}
+{{- toYaml .Values.resources -}}
+{{- else -}}
+{{- toYaml $profile.resources -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "vertex-openai-proxy.embeddingMaxConcurrency" -}}
+{{- $profile := include "vertex-openai-proxy.selectedProfile" . | fromYaml -}}
+{{- if .Values.runtime.embedding.maxConcurrency -}}
+{{- .Values.runtime.embedding.maxConcurrency -}}
+{{- else -}}
+{{- $profile.runtime.embeddingMaxConcurrency -}}
+{{- end -}}
+{{- end -}}
