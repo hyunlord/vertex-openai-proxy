@@ -31,6 +31,7 @@ def test_health() -> None:
     assert "process" in payload
     assert "recent_pressure" in payload
     assert "mode_transitions" in payload
+    assert "request_shed" in payload
 
 
 def test_readyz_returns_not_ready_when_degraded_and_policy_enabled(monkeypatch) -> None:

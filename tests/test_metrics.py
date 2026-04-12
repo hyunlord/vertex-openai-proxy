@@ -23,6 +23,7 @@ def test_metrics_endpoint_exposes_runtime_mode_and_basic_gauges() -> None:
     assert "vertex_proxy_process_cpu_percent" in body
     assert "vertex_proxy_process_rss_mb" in body
     assert "vertex_proxy_process_max_rss_mb" in body
+    assert "vertex_proxy_request_shed_total" in body
 
 
 def test_metrics_include_transition_and_status_breakdown(monkeypatch) -> None:

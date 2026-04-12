@@ -28,6 +28,14 @@ class RequestOutcome:
     auth_failure: bool
 
 
+@dataclass(slots=True)
+class AdmissionRejection:
+    endpoint: EndpointName
+    reason: str
+    status_code: int
+    message: str
+
+
 def _normalize_max_rss_mb() -> float:
     usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     if sys.platform == "darwin":
@@ -52,9 +60,66 @@ class RuntimeController:
             "degraded->elevated": 0,
             "degraded->normal": 0,
         }
+        self._request_shed = {
+            "chat:absolute_in_flight_cap": 0,
+            "chat:degraded_in_flight_cap": 0,
+            "embeddings:absolute_in_flight_cap": 0,
+            "embeddings:degraded_in_flight_cap": 0,
+            "embeddings:degraded_input_count": 0,
+        }
         self._last_process_wall: float | None = None
         self._last_process_cpu: float | None = None
         self._cpu_percent: float = 0.0
+
+    def admission_check(
+        self,
+        *,
+        endpoint: EndpointName,
+        input_count: int = 1,
+    ) -> AdmissionRejection | None:
+        with self._lock:
+            mode = self._mode
+            if endpoint == "chat":
+                if self._in_flight_chat >= settings.chat_max_in_flight_requests:
+                    return self._record_rejection(
+                        endpoint="chat",
+                        reason="absolute_in_flight_cap",
+                        message="Request shed because chat in-flight requests exceeded the configured cap",
+                    )
+                if (
+                    settings.runtime_adaptive_mode
+                    and mode == "degraded"
+                    and self._in_flight_chat >= settings.runtime_degraded_chat_max_in_flight
+                ):
+                    return self._record_rejection(
+                        endpoint="chat",
+                        reason="degraded_in_flight_cap",
+                        message="Request shed because degraded-mode chat in-flight requests exceeded the configured cap",
+                    )
+                return None
+
+            if self._in_flight_embeddings >= settings.embeddings_max_in_flight_requests:
+                return self._record_rejection(
+                    endpoint="embeddings",
+                    reason="absolute_in_flight_cap",
+                    message="Request shed because embeddings in-flight requests exceeded the configured cap",
+                )
+            if settings.runtime_adaptive_mode and mode == "degraded":
+                if self._in_flight_embeddings >= settings.runtime_degraded_embeddings_max_in_flight:
+                    return self._record_rejection(
+                        endpoint="embeddings",
+                        reason="degraded_in_flight_cap",
+                        message="Request shed because degraded-mode embeddings in-flight requests exceeded the configured cap",
+                    )
+                if input_count > settings.runtime_degraded_max_embedding_inputs:
+                    return self._record_rejection(
+                        endpoint="embeddings",
+                        reason="degraded_input_count",
+                        message=(
+                            "Request shed because degraded-mode embeddings input count exceeded the configured cap"
+                        ),
+                    )
+            return None
 
     def request_started(self, endpoint: EndpointName) -> None:
         with self._lock:
@@ -130,6 +195,7 @@ class RuntimeController:
                     "max_rss_mb": _normalize_max_rss_mb(),
                 },
                 "mode_transitions": dict(self._mode_transitions),
+                "request_shed": dict(self._request_shed),
             }
 
     def reset(self) -> None:
@@ -141,6 +207,7 @@ class RuntimeController:
             self._in_flight_chat = 0
             self._in_flight_embeddings = 0
             self._mode_transitions = {key: 0 for key in self._mode_transitions}
+            self._request_shed = {key: 0 for key in self._request_shed}
             self._last_process_wall = None
             self._last_process_cpu = None
             self._cpu_percent = 0.0
@@ -291,6 +358,22 @@ class RuntimeController:
             "cpu_percent": self._cpu_percent,
             "rss_mb": rss_mb,
         }
+
+    def _record_rejection(
+        self,
+        *,
+        endpoint: EndpointName,
+        reason: str,
+        message: str,
+    ) -> AdmissionRejection:
+        key = f"{endpoint}:{reason}"
+        self._request_shed[key] += 1
+        return AdmissionRejection(
+            endpoint=endpoint,
+            reason=reason,
+            status_code=429,
+            message=message,
+        )
 
     def _refresh_mode_reasons(self, metrics: dict, process: dict[str, float]) -> None:
         reasons: list[str] = []

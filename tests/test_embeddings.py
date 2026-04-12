@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.main import app
+from app.runtime.controller import runtime_controller
 from app.schemas.openai_embeddings import EmbeddingRequest
 from app.services.http_client import VertexUpstreamError
 from app.services.vertex_embeddings import create_embedding_response
@@ -69,6 +70,37 @@ def test_embeddings_reject_too_many_inputs(monkeypatch) -> None:
     payload = response.json()
     assert payload["error"]["type"] == "invalid_request_error"
     assert "maximum" in payload["error"]["message"].lower()
+
+
+def test_embeddings_shed_oversized_requests_in_degraded_mode(monkeypatch) -> None:
+    runtime_controller.reset()
+    monkeypatch.setattr(settings, "runtime_adaptive_mode", True)
+    monkeypatch.setattr(settings, "runtime_soft_retryable_error_rate", 0.5)
+    monkeypatch.setattr(settings, "runtime_hard_retryable_error_rate", 0.1)
+    monkeypatch.setattr(settings, "runtime_degraded_max_embedding_inputs", 2)
+
+    for _ in range(2):
+        runtime_controller.request_started("chat")
+        runtime_controller.request_finished(
+            endpoint="chat",
+            latency_ms=100.0,
+            status_code=503,
+            retry_attempts=1,
+            retryable_failure=True,
+            timed_out=False,
+            auth_failure=False,
+        )
+
+    response = client.post(
+        "/v1/embeddings",
+        headers=AUTH,
+        json={"model": "gemini-embedding-2-preview", "input": ["a", "b", "c"]},
+    )
+
+    assert response.status_code == 429
+    payload = response.json()
+    assert payload["error"]["type"] == "rate_limit_error"
+    assert "degraded-mode embeddings input count exceeded" in payload["error"]["message"]
 
 
 @patch("app.services.vertex_embeddings._embed_one", new_callable=AsyncMock)

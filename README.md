@@ -101,6 +101,11 @@ cp .env.example .env
 - `RUNTIME_HARD_IN_FLIGHT_CHAT`: Hard in-flight chat threshold for degraded mode
 - `RUNTIME_SOFT_IN_FLIGHT_EMBEDDINGS`: Soft in-flight embeddings threshold for elevated mode
 - `RUNTIME_HARD_IN_FLIGHT_EMBEDDINGS`: Hard in-flight embeddings threshold for degraded mode
+- `CHAT_MAX_IN_FLIGHT_REQUESTS`: Absolute chat admission cap regardless of runtime mode
+- `EMBEDDINGS_MAX_IN_FLIGHT_REQUESTS`: Absolute embeddings admission cap regardless of runtime mode
+- `RUNTIME_DEGRADED_CHAT_MAX_IN_FLIGHT`: Tighter degraded-mode chat admission cap
+- `RUNTIME_DEGRADED_EMBEDDINGS_MAX_IN_FLIGHT`: Tighter degraded-mode embeddings admission cap
+- `RUNTIME_DEGRADED_MAX_EMBEDDING_INPUTS`: Maximum embeddings input items accepted while degraded
 - `RUNTIME_CHAT_SOFT_LATENCY_MS`: Soft p95 chat latency threshold for entering elevated mode
 - `RUNTIME_CHAT_HARD_LATENCY_MS`: Hard p95 chat latency threshold for entering degraded mode
 - `RUNTIME_EMBEDDINGS_SOFT_LATENCY_MS`: Soft p95 embeddings latency threshold for entering elevated mode
@@ -129,6 +134,20 @@ The proxy now exposes service-wide runtime state for both humans and automation:
   - detailed runtime snapshot including reasons, recent pressure, effective limits, and mode transitions
 - `/metrics`
   - exposes Prometheus-friendly gauges for runtime mode, request health, retries, in-flight counts, adaptive embedding concurrency, and process pressure
+
+## Overload Protection
+
+When service-wide runtime adaptation is enabled, the proxy can protect itself with admission control instead of accepting work until latency collapses.
+
+- absolute in-flight caps are always enforced for chat and embeddings
+- degraded mode can apply tighter in-flight caps
+- degraded mode can reject oversized embeddings batches early
+- shed requests return `429` and are counted in `vertex_proxy_request_shed_total`
+
+This keeps the service explainable under pressure:
+- `/readyz` can fail when `READINESS_FAIL_ON_DEGRADED=true`
+- `/runtimez` shows current mode, reasons, and shed counters
+- `/metrics` shows request shedding and mode transitions over time
 
 Service-wide runtime mode is:
 

@@ -59,6 +59,17 @@ async def metrics() -> PlainTextResponse:
                 f'vertex_proxy_runtime_mode_transitions_total{{from_mode="{from_mode}",to_mode="{to_mode}"}} {count}',
             ]
         )
+    lines.extend(
+        [
+            "# HELP vertex_proxy_request_shed_total Requests rejected by overload protection",
+            "# TYPE vertex_proxy_request_shed_total counter",
+        ]
+    )
+    for key, count in snapshot["request_shed"].items():
+        endpoint, reason = key.split(":", maxsplit=1)
+        lines.append(
+            f'vertex_proxy_request_shed_total{{endpoint="{endpoint}",reason="{reason}"}} {count}'
+        )
     for endpoint in ("chat", "embeddings", "global"):
         metrics = snapshot["metrics"][endpoint]
         lines.extend(
