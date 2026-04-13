@@ -154,3 +154,39 @@ def test_chat_logs_retry_attempts_when_retry_used(
     assert response.status_code == 200
     log_record = next(record for record in caplog.records if getattr(record, "operation", None) == "chat")
     assert log_record.retry_attempts == 1
+
+
+@patch("app.services.vertex_chat.vertex_json_request", new_callable=AsyncMock)
+def test_chat_logs_requested_and_resolved_model_for_alias_requests(
+    mock_vertex_json_request: AsyncMock,
+    caplog,
+    monkeypatch,
+) -> None:
+    runtime_controller.reset()
+    caplog.set_level(logging.INFO, logger="vertex_openai_proxy")
+    monkeypatch.setattr(settings, "vertex_chat_model", "google/gemini-3.1-flash-lite-preview")
+    monkeypatch.setattr(settings, "vertex_chat_models", "google/gemini-3.1-pro-preview")
+    monkeypatch.setattr(settings, "vertex_chat_model_aliases", "genos-pro=google/gemini-3.1-pro-preview")
+    mock_vertex_json_request.return_value = {
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "ok"},
+                "finish_reason": "stop",
+            }
+        ]
+    }
+
+    response = client.post(
+        "/v1/chat/completions",
+        headers=AUTH,
+        json={
+            "model": "genos-pro",
+            "messages": [{"role": "user", "content": "hello"}],
+        },
+    )
+
+    assert response.status_code == 200
+    log_record = next(record for record in caplog.records if getattr(record, "operation", None) == "chat")
+    assert log_record.model == "google/gemini-3.1-pro-preview"
+    assert log_record.requested_model == "genos-pro"

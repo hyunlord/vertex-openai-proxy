@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import settings
 from app.main import app
 from app.schemas.openai_chat import ChatCompletionRequest
 from app.services.vertex_chat import create_chat_completion_stream
@@ -80,3 +81,29 @@ def test_chat_streaming_response_uses_sse_media_type() -> None:
     assert response.headers["content-type"].startswith("text/event-stream")
     assert 'data: {"id":"chunk-1"' in body
     assert "data: [DONE]" in body
+
+
+@pytest.mark.asyncio
+async def test_chat_streaming_alias_resolves_model_name() -> None:
+    with patch("app.services.vertex_chat.vertex_stream_request", return_value=_fake_vertex_stream()):
+        original_default = settings.vertex_chat_model
+        original_models = settings.vertex_chat_models
+        original_aliases = settings.vertex_chat_model_aliases
+        settings.vertex_chat_model = "google/gemini-3.1-flash-lite-preview"
+        settings.vertex_chat_models = "google/gemini-3.1-pro-preview"
+        settings.vertex_chat_model_aliases = "genos-pro=google/gemini-3.1-pro-preview"
+        try:
+            payload = ChatCompletionRequest(
+                model="genos-pro",
+                messages=[{"role": "user", "content": "hello"}],
+                stream=True,
+            )
+
+            events = [event async for event in create_chat_completion_stream(payload)]
+        finally:
+            settings.vertex_chat_model = original_default
+            settings.vertex_chat_models = original_models
+            settings.vertex_chat_model_aliases = original_aliases
+
+    first_chunk = json.loads(events[0].removeprefix("data: ").strip())
+    assert first_chunk["model"] == "google/gemini-3.1-pro-preview"

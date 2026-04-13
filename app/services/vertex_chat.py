@@ -156,6 +156,7 @@ def _parse_stream_payload(line: str) -> str | None:
 
 
 async def create_chat_completion_stream(payload: ChatCompletionRequest) -> AsyncIterator[str]:
+    requested_model = payload.requested_model()
     resolved_model = payload.resolved_model()
     body = payload.model_dump(exclude_none=True)
     body["model"] = resolved_model
@@ -216,6 +217,7 @@ async def create_chat_completion_stream(payload: ChatCompletionRequest) -> Async
             operation="chat",
             endpoint="/v1/chat/completions",
             model=resolved_model,
+            requested_model=requested_model,
             mode="stream",
             runtime_mode=runtime_mode,
             upstream_status=upstream_status,
@@ -226,6 +228,7 @@ async def create_chat_completion_stream(payload: ChatCompletionRequest) -> Async
 
 
 async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
+    requested_model = payload.requested_model()
     resolved_model = payload.resolved_model()
     body = payload.model_dump(exclude_none=True)
     body["model"] = resolved_model
@@ -270,6 +273,7 @@ async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
             operation="chat",
             endpoint="/v1/chat/completions",
             model=resolved_model,
+            requested_model=requested_model,
             mode="non_stream",
             runtime_mode=runtime_mode,
             retry_attempts=retry_attempts,
