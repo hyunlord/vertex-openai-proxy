@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +19,8 @@ class Settings(BaseSettings):
     vertex_chat_location: str = "global"
     vertex_embedding_location: str = "us-central1"
     vertex_chat_model: str = "google/gemini-2.5-flash"
+    vertex_chat_models: str = ""
+    vertex_chat_model_aliases: str = ""
     vertex_embedding_model: str = "gemini-embedding-2-preview"
     request_timeout_seconds: float = 60.0
     embedding_max_concurrency: int = 4
@@ -69,6 +73,33 @@ class Settings(BaseSettings):
     chat_retry_backoff_ms: int = 200
     vertex_access_token: str | None = None
 
+    def allowed_chat_models(self) -> tuple[str, ...]:
+        ordered_models: list[str] = []
+        for model_id in [self.vertex_chat_model, *_split_csv(self.vertex_chat_models)]:
+            if model_id and model_id not in ordered_models:
+                ordered_models.append(model_id)
+        return tuple(ordered_models)
+
+    def chat_model_alias_map(self) -> dict[str, str]:
+        aliases: dict[str, str] = {}
+        allowed_models = set(self.allowed_chat_models())
+        for entry in _split_csv(self.vertex_chat_model_aliases):
+            if "=" not in entry:
+                raise RuntimeError(
+                    "VERTEX_CHAT_MODEL_ALIASES entries must use alias=model format."
+                )
+            alias, target_model = (part.strip() for part in entry.split("=", 1))
+            if not alias or not target_model:
+                raise RuntimeError(
+                    "VERTEX_CHAT_MODEL_ALIASES entries must use alias=model format."
+                )
+            if target_model not in allowed_models:
+                raise RuntimeError(
+                    "VERTEX_CHAT_MODEL_ALIASES must reference a configured chat model."
+                )
+            aliases[alias] = target_model
+        return aliases
+
 
 settings = Settings()
 
@@ -79,3 +110,9 @@ def validate_runtime_settings() -> None:
         raise RuntimeError(
             "INTERNAL_BEARER_TOKEN must be set to a non-default value before starting the app."
         )
+    settings.allowed_chat_models()
+    settings.chat_model_alias_map()
+
+
+def _split_csv(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]

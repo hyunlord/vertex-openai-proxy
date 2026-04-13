@@ -71,6 +71,8 @@ config:
   vertexChatLocation: global
   vertexEmbeddingLocation: us-central1
   vertexChatModel: google/gemini-2.5-flash
+  vertexChatModels: ""
+  vertexChatModelAliases: ""
   vertexEmbeddingModel: gemini-embedding-2-preview
   requestTimeoutSeconds: 60
 
