@@ -156,7 +156,9 @@ def _parse_stream_payload(line: str) -> str | None:
 
 
 async def create_chat_completion_stream(payload: ChatCompletionRequest) -> AsyncIterator[str]:
+    resolved_model = payload.resolved_model()
     body = payload.model_dump(exclude_none=True)
+    body["model"] = resolved_model
     saw_done = False
     started_at = perf_counter()
     upstream_status = 200
@@ -184,7 +186,7 @@ async def create_chat_completion_stream(payload: ChatCompletionRequest) -> Async
                     status_code=502, detail="Vertex chat stream chunks must be JSON objects"
                 )
 
-            normalized_chunk = normalize_chat_stream_chunk(upstream_chunk, model=payload.model)
+            normalized_chunk = normalize_chat_stream_chunk(upstream_chunk, model=resolved_model)
             yield f"data: {json.dumps(normalized_chunk, separators=(',', ':'))}\n\n"
     except VertexUpstreamError as exc:
         upstream_status = exc.status_code
@@ -213,7 +215,7 @@ async def create_chat_completion_stream(payload: ChatCompletionRequest) -> Async
             "request_completed",
             operation="chat",
             endpoint="/v1/chat/completions",
-            model=payload.model,
+            model=resolved_model,
             mode="stream",
             runtime_mode=runtime_mode,
             upstream_status=upstream_status,
@@ -224,7 +226,9 @@ async def create_chat_completion_stream(payload: ChatCompletionRequest) -> Async
 
 
 async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
+    resolved_model = payload.resolved_model()
     body = payload.model_dump(exclude_none=True)
+    body["model"] = resolved_model
     started_at = perf_counter()
     upstream_status = 200
     retry_attempts = 0
@@ -237,7 +241,7 @@ async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
         response = response[0]
         if not isinstance(response, dict):
             raise HTTPException(status_code=502, detail="Vertex chat response must be a JSON object")
-        return normalize_chat_completion_response(response, model=payload.model)
+        return normalize_chat_completion_response(response, model=resolved_model)
     except VertexUpstreamError as exc:
         upstream_status = exc.status_code
         retryable_failure = is_retryable_upstream_error(exc)
@@ -265,7 +269,7 @@ async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
             "request_completed",
             operation="chat",
             endpoint="/v1/chat/completions",
-            model=payload.model,
+            model=resolved_model,
             mode="non_stream",
             runtime_mode=runtime_mode,
             retry_attempts=retry_attempts,
