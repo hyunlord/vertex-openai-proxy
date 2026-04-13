@@ -6,7 +6,9 @@ config:
   vertexProjectId: your-private-gcp-project-id
   vertexChatLocation: global
   vertexEmbeddingLocation: us-central1
-  vertexChatModel: google/gemini-2.5-flash
+  vertexChatModel: google/gemini-3.1-flash-lite-preview
+  vertexChatModels: google/gemini-3.1-pro-preview
+  vertexChatModelAliases: genos-flash=google/gemini-3.1-flash-lite-preview,genos-pro=google/gemini-3.1-pro-preview
   vertexEmbeddingModel: gemini-embedding-2-preview
 
 runtime:

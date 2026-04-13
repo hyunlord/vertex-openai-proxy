@@ -118,3 +118,12 @@ Private repo starter values can begin from these public-safe examples:
 - [`examples/private-infra/values-common.yaml`](../examples/private-infra/values-common.yaml)
 - [`examples/private-infra/values-canary.yaml`](../examples/private-infra/values-canary.yaml)
 - [`examples/private-infra/values-stable.yaml`](../examples/private-infra/values-stable.yaml)
+
+The starter values intentionally show a single stable proxy exposing multiple chat models:
+
+- default chat model: `google/gemini-3.1-flash-lite-preview`
+- extra chat model: `google/gemini-3.1-pro-preview`
+- aliases: `genos-flash`, `genos-pro`
+- single embedding model: `gemini-embedding-2-preview`
+
+That keeps the operational footprint close to a single service while still letting the platform choose between multiple chat models at request time.

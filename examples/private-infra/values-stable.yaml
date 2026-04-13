@@ -1,8 +1,10 @@
+fullnameOverride: vertex-openai-proxy-stable
+
 replicaCount: 2
 profile: balanced
 
 image:
-  tag: v0.1.0
+  tag: replace-with-release-or-canary-tag
 
 autoscaling:
   enabled: true
