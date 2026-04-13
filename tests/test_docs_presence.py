@@ -83,8 +83,14 @@ def test_private_infra_values_examples_cover_common_canary_and_stable() -> None:
     assert "auth:" in common
     assert "existingSecret" in common
     assert "vertexProjectId" in common
+    assert "vertexChatModels:" in common
+    assert "vertexChatModelAliases:" in common
+    assert "genos-flash" in common
+    assert "genos-pro" in common
     assert "replicaCount" in canary
+    assert "fullnameOverride: vertex-openai-proxy-canary" in canary
     assert "replicaCount" in stable
+    assert "fullnameOverride: vertex-openai-proxy-stable" in stable
     assert "image:" in stable
 
 
