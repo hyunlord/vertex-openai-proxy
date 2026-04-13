@@ -14,6 +14,12 @@ Supported request fields:
 - `messages`
 - `stream`
 
+Chat model behavior:
+- `model` may be omitted, in which case the configured default chat model is used
+- `model` may be a configured alias such as `genos-flash`
+- `model` may be a configured raw model ID such as `google/gemini-3.1-pro-preview`
+- chat aliases resolve to a raw model ID before the Vertex upstream call is made
+
 Supported response shapes:
 - `chat.completion`
 - `chat.completion.chunk`
@@ -73,3 +79,9 @@ All handled errors return an OpenAI-style envelope:
 ## Models
 
 Only allowlisted models are supported. `/v1/models` returns the proxy's current allowlist rather than every model Vertex might support.
+
+For chat models, the allowlist may include:
+- configured raw model IDs
+- configured aliases that map to those raw model IDs
+
+Embeddings remain single-model for now even when chat is configured for multi-model use.

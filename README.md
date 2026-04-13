@@ -81,6 +81,8 @@ cp .env.example .env
 - `VERTEX_CHAT_LOCATION`: Chat endpoint location such as `global`
 - `VERTEX_EMBEDDING_LOCATION`: Embedding endpoint location such as `us-central1`
 - `VERTEX_CHAT_MODEL`: Default chat model ID
+- `VERTEX_CHAT_MODELS`: Optional comma-separated extra chat model IDs allowed by the proxy
+- `VERTEX_CHAT_MODEL_ALIASES`: Optional comma-separated `alias=model-id` pairs such as `genos-flash=google/gemini-3.1-flash-lite-preview,genos-pro=google/gemini-3.1-pro-preview`
 - `VERTEX_EMBEDDING_MODEL`: Default embedding model ID
 - `REQUEST_TIMEOUT_SECONDS`: Upstream timeout
 - `EMBEDDING_MAX_CONCURRENCY`: Maximum in-flight upstream embedding calls per request
@@ -194,6 +196,25 @@ If GKE is blocked by VPC Service Controls or org policy, use `vm direct` to prov
 - `API URL`: `http://your-proxy-host:8080`
 - `Model`: `google/gemini-2.5-flash` for chat, `gemini-embedding-2-preview` for embeddings
 - `Bearer Token`: value of `INTERNAL_BEARER_TOKEN`
+
+## Multi-Chat-Model Configuration
+
+One proxy instance can now expose multiple chat models while keeping embeddings on a single configured embedding model.
+
+Example:
+
+```env
+VERTEX_CHAT_MODEL=google/gemini-3.1-flash-lite-preview
+VERTEX_CHAT_MODELS=google/gemini-3.1-pro-preview
+VERTEX_CHAT_MODEL_ALIASES=genos-flash=google/gemini-3.1-flash-lite-preview,genos-pro=google/gemini-3.1-pro-preview
+VERTEX_EMBEDDING_MODEL=gemini-embedding-2-preview
+```
+
+With this configuration:
+- callers may send `model=genos-flash`
+- callers may send `model=genos-pro`
+- callers may also send the raw Vertex chat model IDs directly
+- embeddings remain single-model for now
 
 ## Quick Start
 
