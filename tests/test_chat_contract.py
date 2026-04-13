@@ -56,6 +56,32 @@ async def test_chat_completion_normalizes_openai_shape(
 
 @pytest.mark.asyncio
 @patch("app.services.vertex_chat.vertex_json_request", new_callable=AsyncMock)
+async def test_chat_completion_accepts_missing_model_and_uses_default(
+    mock_vertex_json_request: AsyncMock,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "vertex_chat_model", "google/gemini-3.1-flash-lite-preview")
+    mock_vertex_json_request.return_value = {
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "ok"},
+                "finish_reason": "stop",
+            }
+        ],
+    }
+
+    response = await create_chat_completion(
+        ChatCompletionRequest(
+            messages=[{"role": "user", "content": "hello"}],
+        )
+    )
+
+    assert response["model"] == "google/gemini-3.1-flash-lite-preview"
+
+
+@pytest.mark.asyncio
+@patch("app.services.vertex_chat.vertex_json_request", new_callable=AsyncMock)
 async def test_chat_completion_preserves_usage_when_present(
     mock_vertex_json_request: AsyncMock,
 ) -> None:

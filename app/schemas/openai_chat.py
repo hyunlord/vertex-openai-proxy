@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from app.model_registry import ensure_supported_model
+from app.model_registry import ensure_supported_chat_model, get_default_chat_model, resolve_chat_model
 
 
 class ChatMessage(BaseModel):
@@ -13,12 +13,18 @@ class ChatMessage(BaseModel):
 
 
 class ChatCompletionRequest(BaseModel):
-    model: str = Field(min_length=1)
+    model: str | None = Field(default=None, min_length=1)
     messages: list[ChatMessage] = Field(min_length=1)
     stream: bool = False
 
     def ensure_supported_model(self) -> None:
-        ensure_supported_model(self.model, feature="chat")
+        ensure_supported_chat_model(self.model)
+
+    def resolved_model(self) -> str:
+        return resolve_chat_model(self.model)
+
+    def requested_model(self) -> str:
+        return self.model or get_default_chat_model()
 
 
 class ChatCompletionUsage(BaseModel):

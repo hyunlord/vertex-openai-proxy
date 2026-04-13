@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, computed_field, field_validator
 
-from app.model_registry import ensure_supported_model, get_default_embedding_model
+from app.model_registry import ensure_supported_embedding_model, get_default_embedding_model, resolve_embedding_model
 
 
 class EmbeddingRequest(BaseModel):
@@ -32,7 +32,7 @@ class EmbeddingRequest(BaseModel):
         return self.input
 
     def resolved_model(self) -> str:
-        return self.model or get_default_embedding_model()
+        return resolve_embedding_model(self.model)
 
     def ensure_supported_model(self) -> None:
-        ensure_supported_model(self.resolved_model(), feature="embedding")
+        ensure_supported_embedding_model(self.model)
