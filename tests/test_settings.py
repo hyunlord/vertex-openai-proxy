@@ -5,6 +5,17 @@ import pytest
 import app.config as config_module
 
 
+def _reload_settings(monkeypatch, **env: str) -> config_module.Settings:
+    monkeypatch.setenv("INTERNAL_BEARER_TOKEN", "test-proxy-token")
+    monkeypatch.delenv("VERTEX_CHAT_MODEL", raising=False)
+    monkeypatch.delenv("VERTEX_CHAT_MODELS", raising=False)
+    monkeypatch.delenv("VERTEX_CHAT_MODEL_ALIASES", raising=False)
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    reloaded = reload(config_module)
+    return reloaded.Settings()
+
+
 def test_runtime_policy_settings_exist_with_conservative_defaults(monkeypatch) -> None:
     monkeypatch.setenv("INTERNAL_BEARER_TOKEN", "test-proxy-token")
     monkeypatch.delenv("EMBEDDING_MAX_CONCURRENCY", raising=False)
@@ -100,3 +111,55 @@ def test_validate_runtime_settings_accepts_non_default_bearer_token(monkeypatch)
     monkeypatch.setattr(config_module.settings, "internal_bearer_token", "test-proxy-token")
 
     config_module.validate_runtime_settings()
+
+
+def test_chat_model_settings_include_default_and_additional_models(monkeypatch) -> None:
+    settings = _reload_settings(
+        monkeypatch,
+        VERTEX_CHAT_MODEL="google/gemini-3.1-flash-lite-preview",
+        VERTEX_CHAT_MODELS="google/gemini-3.1-pro-preview,google/gemini-3.1-flash-lite-preview",
+    )
+
+    assert settings.allowed_chat_models() == (
+        "google/gemini-3.1-flash-lite-preview",
+        "google/gemini-3.1-pro-preview",
+    )
+
+
+def test_chat_model_aliases_are_parsed_into_mapping(monkeypatch) -> None:
+    settings = _reload_settings(
+        monkeypatch,
+        VERTEX_CHAT_MODEL="google/gemini-3.1-flash-lite-preview",
+        VERTEX_CHAT_MODELS="google/gemini-3.1-pro-preview",
+        VERTEX_CHAT_MODEL_ALIASES=(
+            "genos-flash=google/gemini-3.1-flash-lite-preview,"
+            "genos-pro=google/gemini-3.1-pro-preview"
+        ),
+    )
+
+    assert settings.chat_model_alias_map() == {
+        "genos-flash": "google/gemini-3.1-flash-lite-preview",
+        "genos-pro": "google/gemini-3.1-pro-preview",
+    }
+
+
+def test_invalid_chat_model_alias_target_is_rejected(monkeypatch) -> None:
+    settings = _reload_settings(
+        monkeypatch,
+        VERTEX_CHAT_MODEL="google/gemini-3.1-flash-lite-preview",
+        VERTEX_CHAT_MODEL_ALIASES="genos-pro=google/gemini-3.1-pro-preview",
+    )
+
+    with pytest.raises(RuntimeError, match="must reference a configured chat model"):
+        settings.chat_model_alias_map()
+
+
+def test_invalid_chat_model_alias_syntax_is_rejected(monkeypatch) -> None:
+    settings = _reload_settings(
+        monkeypatch,
+        VERTEX_CHAT_MODEL="google/gemini-3.1-flash-lite-preview",
+        VERTEX_CHAT_MODEL_ALIASES="genos-pro",
+    )
+
+    with pytest.raises(RuntimeError, match="must use alias=model format"):
+        settings.chat_model_alias_map()

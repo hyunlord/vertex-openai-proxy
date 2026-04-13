@@ -9,6 +9,8 @@ data:
   VERTEX_CHAT_LOCATION: {{ .Values.config.vertexChatLocation | quote }}
   VERTEX_EMBEDDING_LOCATION: {{ .Values.config.vertexEmbeddingLocation | quote }}
   VERTEX_CHAT_MODEL: {{ .Values.config.vertexChatModel | quote }}
+  VERTEX_CHAT_MODELS: {{ .Values.config.vertexChatModels | quote }}
+  VERTEX_CHAT_MODEL_ALIASES: {{ .Values.config.vertexChatModelAliases | quote }}
   VERTEX_EMBEDDING_MODEL: {{ .Values.config.vertexEmbeddingModel | quote }}
   REQUEST_TIMEOUT_SECONDS: {{ .Values.config.requestTimeoutSeconds | quote }}
   EMBEDDING_MAX_CONCURRENCY: {{ include "vertex-openai-proxy.embeddingMaxConcurrency" . | quote }}
