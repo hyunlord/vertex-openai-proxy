@@ -16,13 +16,16 @@ async def chat_completions(
     _: None = Depends(require_internal_bearer_token),
 ) -> StreamingResponse | dict:
     payload.ensure_supported_model()
+    requested_model = payload.requested_model()
+    resolved_model = payload.resolved_model()
     rejection = await runtime_controller.acquire_request_slot(endpoint="chat")
     if rejection is not None:
         log_event(
             "request_shed",
             operation="chat",
             endpoint="/v1/chat/completions",
-            model=payload.model,
+            model=resolved_model,
+            requested_model=requested_model,
             reason=rejection.reason,
             runtime_mode=runtime_controller.current_mode(),
             stream=payload.stream,
