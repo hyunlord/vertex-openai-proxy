@@ -6,6 +6,12 @@ auth:
   existingSecret: vertex-openai-proxy-auth
   existingSecretKey: internal-bearer-token
 
+config:
+  vertexChatModel: google/gemini-3.1-flash-lite-preview
+  vertexChatModels: google/gemini-3.1-pro-preview
+  vertexChatModelAliases: genos-flash=google/gemini-3.1-flash-lite-preview,genos-pro=google/gemini-3.1-pro-preview
+  vertexEmbeddingModel: gemini-embedding-2-preview
+
 autoscaling:
   enabled: true
   minReplicas: 2

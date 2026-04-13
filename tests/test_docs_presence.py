@@ -86,3 +86,27 @@ def test_private_infra_values_examples_cover_common_canary_and_stable() -> None:
     assert "replicaCount" in canary
     assert "replicaCount" in stable
     assert "image:" in stable
+
+
+def test_readme_documents_multi_chat_model_configuration() -> None:
+    readme = (PROJECT_ROOT / "README.md").read_text()
+
+    assert "VERTEX_CHAT_MODELS" in readme
+    assert "VERTEX_CHAT_MODEL_ALIASES" in readme
+    assert "genos-flash" in readme
+
+
+def test_compatibility_doc_mentions_alias_and_raw_chat_model_support() -> None:
+    compatibility = (PROJECT_ROOT / "docs" / "compatibility.md").read_text()
+
+    assert "alias" in compatibility.lower()
+    assert "raw model" in compatibility.lower()
+    assert "single-model" in compatibility.lower()
+
+
+def test_production_values_example_shows_multi_chat_model_settings() -> None:
+    values = (PROJECT_ROOT / "charts/vertex-openai-proxy/examples/values-production.yaml").read_text()
+
+    assert "vertexChatModel:" in values
+    assert "vertexChatModels:" in values
+    assert "vertexChatModelAliases:" in values
