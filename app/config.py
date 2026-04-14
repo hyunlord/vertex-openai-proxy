@@ -97,6 +97,10 @@ class Settings(BaseSettings):
                 raise RuntimeError(
                     "VERTEX_CHAT_MODEL_ALIASES must reference a configured chat model."
                 )
+            if alias in allowed_models:
+                raise RuntimeError(
+                    "VERTEX_CHAT_MODEL_ALIASES must not reuse configured chat model ids as aliases."
+                )
             aliases[alias] = target_model
         return aliases
 

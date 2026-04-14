@@ -55,13 +55,14 @@ def openai_error_response(
     status_code: int,
     message: str,
     request_id: str | None = None,
+    headers: dict[str, str] | None = None,
     error_type: str | None = None,
     param: str | None = None,
     code: int | str | None = None,
 ) -> JSONResponse:
-    headers: dict[str, str] = {}
+    response_headers = dict(headers or {})
     if request_id:
-        headers["x-request-id"] = request_id
+        response_headers["x-request-id"] = request_id
     payload = build_openai_error(
         message=message,
         status_code=status_code,
@@ -69,7 +70,7 @@ def openai_error_response(
         param=param,
         code=code,
     ).model_dump()
-    return JSONResponse(status_code=status_code, content=payload, headers=headers)
+    return JSONResponse(status_code=status_code, content=payload, headers=response_headers)
 
 
 def extract_request_id(request: Request) -> str | None:

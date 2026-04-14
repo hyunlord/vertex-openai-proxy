@@ -2,6 +2,7 @@ from time import time
 
 import pytest
 
+import app.runtime.controller as runtime_controller_module
 from app.config import settings
 from app.runtime.controller import runtime_controller
 
@@ -129,3 +130,33 @@ async def test_acquire_request_slot_handles_inconsistent_internal_state_without_
     assert rejection is not None
     assert rejection.status_code == 503
     assert rejection.reason == "admission_state_inconsistent"
+
+
+def test_runtime_controller_uses_current_rss_for_pressure_and_reporting(monkeypatch) -> None:
+    runtime_controller.reset()
+    monkeypatch.setattr(settings, "runtime_hard_rss_mb", 100.0)
+    monkeypatch.setattr(settings, "runtime_window_size", 50)
+    monkeypatch.setattr(settings, "runtime_window_seconds", 60)
+    monkeypatch.setattr(settings, "runtime_recovery_seconds", 0)
+    monkeypatch.setattr(runtime_controller_module, "_current_rss_mb", lambda: 20.0)
+    monkeypatch.setattr(runtime_controller_module, "_normalize_max_rss_mb", lambda: 200.0)
+
+    runtime_controller.request_started("chat")
+    mode = runtime_controller.request_finished(
+        endpoint="chat",
+        latency_ms=50.0,
+        status_code=200,
+        retry_attempts=0,
+        retryable_failure=False,
+        timed_out=False,
+        auth_failure=False,
+        now=time(),
+    )
+
+    snapshot = runtime_controller.snapshot()
+
+    assert mode == "normal"
+    assert runtime_controller.current_mode() == "normal"
+    assert snapshot["process"]["rss_mb"] == 20.0
+    assert snapshot["process"]["max_rss_mb"] == 200.0
+    assert "rss_pressure_high" not in snapshot["reasons"]
