@@ -163,3 +163,17 @@ def test_invalid_chat_model_alias_syntax_is_rejected(monkeypatch) -> None:
 
     with pytest.raises(RuntimeError, match="must use alias=model format"):
         settings.chat_model_alias_map()
+
+
+def test_chat_model_aliases_cannot_shadow_raw_model_ids(monkeypatch) -> None:
+    settings = _reload_settings(
+        monkeypatch,
+        VERTEX_CHAT_MODEL="google/gemini-3.1-flash-lite-preview",
+        VERTEX_CHAT_MODELS="google/gemini-3.1-pro-preview",
+        VERTEX_CHAT_MODEL_ALIASES=(
+            "google/gemini-3.1-pro-preview=google/gemini-3.1-flash-lite-preview"
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="must not reuse configured chat model ids as aliases"):
+        settings.chat_model_alias_map()

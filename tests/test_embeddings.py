@@ -72,6 +72,24 @@ def test_embeddings_reject_too_many_inputs(monkeypatch) -> None:
     assert "maximum" in payload["error"]["message"].lower()
 
 
+def test_embeddings_shed_response_includes_retry_after_header(monkeypatch) -> None:
+    runtime_controller.reset()
+    monkeypatch.setattr(settings, "embeddings_max_in_flight_requests", 0)
+    monkeypatch.setattr(settings, "queue_enabled", False)
+    monkeypatch.setattr(settings, "queue_retry_after_seconds", 9)
+
+    response = client.post(
+        "/v1/embeddings",
+        headers=AUTH,
+        json={"model": "gemini-embedding-2-preview", "input": "a"},
+    )
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "9"
+    payload = response.json()
+    assert payload["error"]["type"] == "rate_limit_error"
+
+
 def test_embeddings_shed_oversized_requests_in_degraded_mode(monkeypatch) -> None:
     runtime_controller.reset()
     monkeypatch.setattr(settings, "runtime_adaptive_mode", True)

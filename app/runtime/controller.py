@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import resource
+import subprocess
 import sys
 from collections import deque
 from dataclasses import dataclass
@@ -42,6 +44,28 @@ def _normalize_max_rss_mb() -> float:
     if sys.platform == "darwin":
         return round(usage / (1024 * 1024), 3)
     return round(usage / 1024, 3)
+
+
+def _current_rss_mb() -> float:
+    if sys.platform.startswith("linux"):
+        try:
+            with open("/proc/self/statm", encoding="utf-8") as statm:
+                fields = statm.read().split()
+            if len(fields) >= 2:
+                rss_pages = int(fields[1])
+                return round((rss_pages * resource.getpagesize()) / (1024 * 1024), 3)
+        except (OSError, ValueError):
+            pass
+    try:
+        rss_kb = subprocess.check_output(
+            ["ps", "-o", "rss=", "-p", str(os.getpid())],
+            text=True,
+        ).strip()
+        if rss_kb:
+            return round(int(rss_kb) / 1024, 3)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    return _normalize_max_rss_mb()
 
 
 class RuntimeController:
@@ -524,7 +548,7 @@ class RuntimeController:
                 self._cpu_percent = round(max(0.0, (cpu_delta / wall_delta) * 100), 3)
             self._last_process_wall = now
             self._last_process_cpu = cpu_now
-        rss_mb = _normalize_max_rss_mb()
+        rss_mb = _current_rss_mb()
         return {
             "cpu_percent": self._cpu_percent,
             "rss_mb": rss_mb,

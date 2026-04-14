@@ -127,6 +127,27 @@ def test_chat_completion_rejects_malformed_messages() -> None:
     assert payload["error"]["type"] == "invalid_request_error"
 
 
+def test_chat_completion_shed_response_includes_retry_after_header(monkeypatch) -> None:
+    runtime_controller.reset()
+    monkeypatch.setattr(settings, "chat_max_in_flight_requests", 0)
+    monkeypatch.setattr(settings, "queue_enabled", False)
+    monkeypatch.setattr(settings, "queue_retry_after_seconds", 7)
+
+    response = client.post(
+        "/v1/chat/completions",
+        headers=AUTH,
+        json={
+            "model": "google/gemini-2.5-flash",
+            "messages": [{"role": "user", "content": "hello"}],
+        },
+    )
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "7"
+    payload = response.json()
+    assert payload["error"]["type"] == "rate_limit_error"
+
+
 @patch("app.services.vertex_chat.vertex_json_request", new_callable=AsyncMock)
 def test_chat_completion_sheds_requests_when_degraded_chat_cap_is_hit(
     mock_vertex_json_request: AsyncMock,
