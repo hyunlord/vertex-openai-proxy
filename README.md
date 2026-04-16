@@ -1,8 +1,24 @@
 # vertex-openai-proxy
 
-Reference OpenAI-compatible proxy for Vertex AI.
+Reference OpenAI-compatible proxy for Vertex AI on GKE.
 
 This service accepts a focused OpenAI-compatible API surface and forwards requests to Vertex AI using Workload Identity, ADC, or metadata-based access tokens. It is designed as a narrow, predictable compatibility layer rather than a multi-provider gateway.
+
+## Start Here
+
+- first-time setup and local bring-up: [docs/quickstart.md](docs/quickstart.md)
+- configuration reference and advanced knobs: [docs/configuration.md](docs/configuration.md)
+- validation paths for local, VM, and in-cluster checks: [docs/validation.md](docs/validation.md)
+- operator rollout and rollback guidance: [docs/runbook.md](docs/runbook.md)
+- GenOS / GKE transition guidance: [docs/operations-transition.md](docs/operations-transition.md)
+
+## Project Priorities
+
+This repository is maintained in this order:
+
+1. keep the project legally and operationally usable as public open source
+2. keep the real GKE / GenOS serving path stable
+3. expand compatibility and operator features without widening scope too fast
 
 ## Why This Exists
 
@@ -43,7 +59,8 @@ Vertex AI on GKE works best with Workload Identity and short-lived Google access
 - no multi-provider routing
 - no caching or rate limiting
 - no Responses API or Assistants API
-- no tool-calling compatibility layer yet
+- no image/audio content-parts support yet
+- no multimodal content-parts normalization yet
 - embeddings intentionally fail the entire request if any item fails
 
 See [architecture](docs/architecture.md), [compatibility](docs/compatibility.md), [troubleshooting](docs/troubleshooting.md), and [roadmap](docs/roadmap.md) for details.
@@ -51,6 +68,8 @@ See [architecture](docs/architecture.md), [compatibility](docs/compatibility.md)
 For real-world tuning and model behavior history, see the running [empirical testing log](docs/empirical-testing.md). Future live model tests should be appended there instead of being kept only in ad-hoc notes.
 
 Release history is tracked in [CHANGELOG.md](CHANGELOG.md).
+Security reporting guidance lives in [SECURITY.md](SECURITY.md).
+Community expectations live in [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 For private infrastructure handoff guidance, see [docs/private-handoff.md](docs/private-handoff.md).
 For canary rollout guidance, see [docs/canary-checklist.md](docs/canary-checklist.md).
@@ -63,6 +82,7 @@ This proxy prefers correctness over speculative batching.
 - embeddings preserve input order and return one vector per item
 - embeddings use bounded fan-out concurrency instead of implicit true batch behavior
 - embeddings fail the whole request if any item fails
+- embeddings `usage` is an approximate split-based estimate when Vertex does not provide tokenizer counts
 - non-stream chat uses conservative retries for retry-safe upstream failures
 - stream chat avoids retries after a stream starts to prevent ambiguous partial output
 
@@ -76,64 +96,19 @@ Start by copying the example file:
 cp .env.example .env
 ```
 
+Core settings for most users:
+
 - `INTERNAL_BEARER_TOKEN`: Shared secret used by the client when calling this proxy
 - `VERTEX_PROJECT_ID`: Google Cloud project ID
 - `VERTEX_CHAT_LOCATION`: Chat endpoint location such as `global`
 - `VERTEX_EMBEDDING_LOCATION`: Embedding endpoint location such as `us-central1`
 - `VERTEX_CHAT_MODEL`: Default chat model ID
-- `VERTEX_CHAT_MODELS`: Optional comma-separated extra chat model IDs allowed by the proxy
-- `VERTEX_CHAT_MODEL_ALIASES`: Optional comma-separated `alias=model-id` pairs such as `genos-flash=google/gemini-3.1-flash-lite-preview,genos-pro=google/gemini-3.1-pro-preview`
+- `VERTEX_CHAT_MODELS`: Optional comma-separated extra chat model IDs
+- `VERTEX_CHAT_MODEL_ALIASES`: Optional comma-separated `alias=model-id` pairs
 - `VERTEX_EMBEDDING_MODEL`: Default embedding model ID
 - `REQUEST_TIMEOUT_SECONDS`: Upstream timeout
-- `EMBEDDING_MAX_CONCURRENCY`: Maximum in-flight upstream embedding calls per request
-- `EMBEDDING_MAX_INPUTS_PER_REQUEST`: Hard cap for input items in one embeddings request
-- `EMBEDDING_RETRY_ATTEMPTS`: Retry budget for retry-safe embedding failures
-- `EMBEDDING_RETRY_BACKOFF_MS`: Backoff between embedding retries in milliseconds
-- `EMBEDDING_ADAPTIVE_CONCURRENCY`: Enable optional step-based adaptive fan-out for embeddings
-- `EMBEDDING_ADAPTIVE_MAX_CONCURRENCY`: Upper bound for adaptive embedding concurrency
-- `EMBEDDING_ADAPTIVE_WINDOW_SIZE`: Number of recent embedding requests to consider
-- `EMBEDDING_ADAPTIVE_WINDOW_SECONDS`: Maximum age of adaptive request history
-- `EMBEDDING_ADAPTIVE_COOLDOWN_SECONDS`: Minimum time between adaptive adjustments
-- `EMBEDDING_ADAPTIVE_MIN_SAMPLES`: Minimum recent requests required before adaptive changes
-- `EMBEDDING_ADAPTIVE_LATENCY_UP_THRESHOLD_MS`: Healthy p95 latency threshold for scale-up
-- `EMBEDDING_ADAPTIVE_LATENCY_DOWN_THRESHOLD_MS`: Unhealthy p95 latency threshold for scale-down
-- `EMBEDDING_ADAPTIVE_FAILURE_RATE_UP_THRESHOLD`: Maximum retryable failure rate for scale-up
-- `EMBEDDING_ADAPTIVE_FAILURE_RATE_DOWN_THRESHOLD`: Retryable failure rate that triggers scale-down
-- `RUNTIME_ADAPTIVE_MODE`: Enable service-wide runtime mode awareness across chat and embeddings
-- `READINESS_FAIL_ON_DEGRADED`: Return `503` from `/readyz` while in degraded mode
-- `RUNTIME_WINDOW_SIZE`: Number of recent requests kept in the shared runtime window
-- `RUNTIME_WINDOW_SECONDS`: Maximum age of the shared runtime window
-- `RUNTIME_RECOVERY_SECONDS`: Required stable interval before recovering from elevated or degraded mode
-- `RUNTIME_SOFT_IN_FLIGHT_CHAT`: Soft in-flight chat threshold for elevated mode
-- `RUNTIME_HARD_IN_FLIGHT_CHAT`: Hard in-flight chat threshold for degraded mode
-- `RUNTIME_SOFT_IN_FLIGHT_EMBEDDINGS`: Soft in-flight embeddings threshold for elevated mode
-- `RUNTIME_HARD_IN_FLIGHT_EMBEDDINGS`: Hard in-flight embeddings threshold for degraded mode
-- `CHAT_MAX_IN_FLIGHT_REQUESTS`: Absolute chat admission cap regardless of runtime mode
-- `EMBEDDINGS_MAX_IN_FLIGHT_REQUESTS`: Absolute embeddings admission cap regardless of runtime mode
-- `RUNTIME_DEGRADED_CHAT_MAX_IN_FLIGHT`: Tighter degraded-mode chat admission cap
-- `RUNTIME_DEGRADED_EMBEDDINGS_MAX_IN_FLIGHT`: Tighter degraded-mode embeddings admission cap
-- `RUNTIME_DEGRADED_MAX_EMBEDDING_INPUTS`: Maximum embeddings input items accepted while degraded
-- `RUNTIME_CHAT_SOFT_LATENCY_MS`: Soft p95 chat latency threshold for entering elevated mode
-- `RUNTIME_CHAT_HARD_LATENCY_MS`: Hard p95 chat latency threshold for entering degraded mode
-- `RUNTIME_EMBEDDINGS_SOFT_LATENCY_MS`: Soft p95 embeddings latency threshold for entering elevated mode
-- `RUNTIME_EMBEDDINGS_HARD_LATENCY_MS`: Hard p95 embeddings latency threshold for entering degraded mode
-- `RUNTIME_SOFT_RETRYABLE_ERROR_RATE`: Soft retryable failure rate threshold for elevated mode
-- `RUNTIME_HARD_RETRYABLE_ERROR_RATE`: Hard retryable failure rate threshold for degraded mode
-- `RUNTIME_SOFT_TIMEOUT_RATE`: Soft timeout rate threshold for elevated mode
-- `RUNTIME_HARD_TIMEOUT_RATE`: Hard timeout rate threshold for degraded mode
-- `RUNTIME_HARD_CPU_PERCENT`: Hard CPU pressure threshold for degraded mode
-- `RUNTIME_HARD_RSS_MB`: Hard memory pressure threshold for degraded mode
-- `QUEUE_ENABLED`: Enable optional bounded queueing for short burst smoothing
-- `QUEUE_DISABLE_ON_DEGRADED`: Disable bounded queueing while the service is degraded
-- `QUEUE_POLL_INTERVAL_MS`: Poll interval used while a request waits for bounded queue admission
-- `QUEUE_RETRY_AFTER_SECONDS`: Suggested retry window for shed requests
-- `CHAT_QUEUE_MAX_WAIT_MS`: Maximum wait budget for queued chat requests
-- `CHAT_QUEUE_MAX_DEPTH`: Maximum queued chat requests
-- `EMBEDDINGS_QUEUE_MAX_WAIT_MS`: Maximum wait budget for queued embeddings requests
-- `EMBEDDINGS_QUEUE_MAX_DEPTH`: Maximum queued embeddings requests
-- `CHAT_RETRY_ATTEMPTS`: Retry budget for retry-safe non-stream chat failures
-- `CHAT_RETRY_BACKOFF_MS`: Backoff between chat retries in milliseconds
-- `VERTEX_ACCESS_TOKEN`: Optional manual token override for local debugging
+
+Advanced runtime, queue, retry, and adaptive knobs are documented in [docs/configuration.md](docs/configuration.md).
 
 ## Runtime Health And Metrics
 
@@ -216,13 +191,15 @@ With this configuration:
 - callers may also send the raw Vertex chat model IDs directly
 - embeddings remain single-model for now
 
-## Quick Start
+## Quick Start Summary
 
-1. Install dependencies:
+If you are starting from scratch, use [docs/quickstart.md](docs/quickstart.md) first. The summary below is kept here as a fast reference.
+
+1. Install dependencies for local development and verification:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt
 ```
 
 2. Export configuration:
@@ -245,51 +222,19 @@ curl -s http://127.0.0.1:8080/health
 python3 -m pytest tests -q
 ```
 
-## VM Direct Validation
+For a runtime-only installation, use `pip install -r requirements.txt`.
 
-When GKE pod-to-Vertex auth is blocked but the ops VM can still call Vertex, use Docker on the VM as a verification-only path:
+## Validation And GKE Notes
 
-```bash
-docker build -t vertex-openai-proxy:local .
-docker run --rm -p 8080:8080 \
-  -e INTERNAL_BEARER_TOKEN=replace-with-a-random-token \
-  -e VERTEX_PROJECT_ID=your-gcp-project-id \
-  -e VERTEX_CHAT_LOCATION=global \
-  -e VERTEX_EMBEDDING_LOCATION=us-central1 \
-  vertex-openai-proxy:local
-```
-
-Then run:
-
-```bash
-export PROXY_BASE_URL=http://127.0.0.1:8080
-export INTERNAL_BEARER_TOKEN=replace-with-a-random-token
-python3 scripts/smoke_vm_direct.py
-```
-
-This path is for verification only. Keep production traffic on GKE after perimeter and STS policy issues are resolved.
-
-## In-Cluster Validation
-
-Use this path only when GKE Workload Identity and perimeter policy are expected to be healthy:
-
-```bash
-export IN_CLUSTER_PROXY_BASE_URL=http://your-service-name:8080
-export INTERNAL_BEARER_TOKEN=replace-with-a-random-token
-python3 scripts/smoke_in_cluster.py
-```
-
-If `mock/local` passes and `vm direct` passes but `in-cluster` fails with `organization's policy` or `vpcServiceControlsUniqueIdentifier`, treat it as an infrastructure blocker first.
-
-## GKE / Workload Identity
-
-This service is meant to run on GKE with a Kubernetes service account mapped to a Google service account that can call Vertex AI. At minimum, the mapped GSA needs Vertex prediction permissions for the target models.
+For full validation paths and GKE-specific notes, see [docs/validation.md](docs/validation.md).
 
 ## Examples
 
 - [curl chat example](examples/curl/chat.sh)
+- [curl tool-calling example](examples/curl/tool_calling.sh)
 - [curl embeddings example](examples/curl/embeddings.sh)
 - [Python chat example](examples/python/chat.py)
+- [Python tool-calling example](examples/python/tool_calling.py)
 
 ## Helm
 

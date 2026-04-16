@@ -112,6 +112,170 @@ async def test_chat_completion_preserves_usage_when_present(
     }
 
 
+@pytest.mark.asyncio
+@patch("app.services.vertex_chat.vertex_json_request", new_callable=AsyncMock)
+async def test_chat_completion_normalizes_tool_call_response(
+    mock_vertex_json_request: AsyncMock,
+) -> None:
+    mock_vertex_json_request.return_value = {
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {
+                            "id": "call_weather",
+                            "type": "function",
+                            "function": {
+                                "name": "get_weather",
+                                "arguments": "{\"city\":\"Seoul\"}",
+                            },
+                        }
+                    ],
+                },
+                "finish_reason": "tool_calls",
+            }
+        ]
+    }
+
+    response = await create_chat_completion(
+        ChatCompletionRequest(
+            model="google/gemini-2.5-flash",
+            messages=[{"role": "user", "content": "What is the weather in Seoul?"}],
+            tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_weather",
+                        "description": "Get the current weather",
+                    },
+                }
+            ],
+            tool_choice="auto",
+        )
+    )
+
+    assert response["choices"][0]["finish_reason"] == "tool_calls"
+    assert response["choices"][0]["message"]["tool_calls"] == [
+        {
+            "id": "call_weather",
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "arguments": "{\"city\":\"Seoul\"}",
+            },
+        }
+    ]
+    assert "content" not in response["choices"][0]["message"]
+
+
+@pytest.mark.asyncio
+@patch("app.services.vertex_chat.vertex_json_request", new_callable=AsyncMock)
+async def test_chat_completion_forwards_tool_payload_to_vertex(
+    mock_vertex_json_request: AsyncMock,
+) -> None:
+    mock_vertex_json_request.return_value = {
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "ok"},
+                "finish_reason": "stop",
+            }
+        ]
+    }
+
+    await create_chat_completion(
+        ChatCompletionRequest(
+            model="google/gemini-2.5-flash",
+            messages=[
+                {"role": "user", "content": "What is the weather in Seoul?"},
+                {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {
+                            "id": "call_weather",
+                            "type": "function",
+                            "function": {
+                                "name": "get_weather",
+                                "arguments": "{\"city\":\"Seoul\"}",
+                            },
+                        }
+                    ],
+                },
+                {
+                    "role": "tool",
+                    "tool_call_id": "call_weather",
+                    "content": "{\"temperature_c\":19}",
+                },
+            ],
+            tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_weather",
+                        "description": "Get the current weather",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "city": {"type": "string"},
+                            },
+                            "required": ["city"],
+                        },
+                    },
+                }
+            ],
+            tool_choice={
+                "type": "function",
+                "function": {"name": "get_weather"},
+            },
+        )
+    )
+
+    upstream_body = mock_vertex_json_request.await_args.args[2]
+    assert upstream_body["tools"][0]["function"]["name"] == "get_weather"
+    assert upstream_body["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "get_weather"},
+    }
+    assert upstream_body["messages"][1]["tool_calls"][0]["id"] == "call_weather"
+    assert upstream_body["messages"][2]["tool_call_id"] == "call_weather"
+
+
+@pytest.mark.asyncio
+@patch("app.services.vertex_chat.vertex_json_request", new_callable=AsyncMock)
+async def test_chat_completion_accepts_text_content_parts_and_flattens_for_vertex(
+    mock_vertex_json_request: AsyncMock,
+) -> None:
+    mock_vertex_json_request.return_value = {
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "ok"},
+                "finish_reason": "stop",
+            }
+        ]
+    }
+
+    await create_chat_completion(
+        ChatCompletionRequest(
+            model="google/gemini-2.5-flash",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Hello, "},
+                        {"type": "text", "text": "world"},
+                    ],
+                }
+            ],
+        )
+    )
+
+    upstream_body = mock_vertex_json_request.await_args.args[2]
+    assert upstream_body["messages"][0]["content"] == "Hello, world"
+
+
 def test_chat_completion_rejects_malformed_messages() -> None:
     response = client.post(
         "/v1/chat/completions",
@@ -119,6 +283,46 @@ def test_chat_completion_rejects_malformed_messages() -> None:
         json={
             "model": "google/gemini-2.5-flash",
             "messages": [{"role": "user"}],
+        },
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["type"] == "invalid_request_error"
+
+
+def test_chat_completion_rejects_non_text_content_parts() -> None:
+    response = client.post(
+        "/v1/chat/completions",
+        headers=AUTH,
+        json={
+            "model": "google/gemini-2.5-flash",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": "https://example.com/cat.png"},
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["type"] == "invalid_request_error"
+
+
+def test_chat_completion_rejects_tool_messages_without_tool_call_id() -> None:
+    response = client.post(
+        "/v1/chat/completions",
+        headers=AUTH,
+        json={
+            "model": "google/gemini-2.5-flash",
+            "messages": [{"role": "tool", "content": "{\"temperature_c\":19}"}],
         },
     )
 

@@ -9,10 +9,13 @@ def test_harness_docs_exist() -> None:
         "CHANGELOG.md",
         "docs/alerts.md",
         "docs/canary-checklist.md",
+        "docs/configuration.md",
         "docs/harness.md",
         "docs/private-handoff.md",
+        "docs/quickstart.md",
         "docs/release.md",
         "docs/runbook.md",
+        "docs/validation.md",
         "docs/operations-transition.md",
     ]:
         assert (PROJECT_ROOT / relative_path).exists()
@@ -102,12 +105,60 @@ def test_readme_documents_multi_chat_model_configuration() -> None:
     assert "genos-flash" in readme
 
 
+def test_readme_points_first_time_users_to_quickstart() -> None:
+    readme = (PROJECT_ROOT / "README.md").read_text()
+
+    assert "docs/quickstart.md" in readme
+    assert "runbook" in readme.lower()
+    assert "docs/configuration.md" in readme
+    assert "docs/validation.md" in readme
+
+
+def test_quickstart_covers_local_and_helm_paths() -> None:
+    quickstart = (PROJECT_ROOT / "docs" / "quickstart.md").read_text()
+
+    assert "cp .env.example .env" in quickstart
+    assert "uvicorn app.main:app" in quickstart
+    assert "helm upgrade --install" in quickstart
+    assert "INTERNAL_BEARER_TOKEN" in quickstart
+
+
+def test_configuration_doc_splits_core_and_advanced_settings() -> None:
+    configuration = (PROJECT_ROOT / "docs" / "configuration.md").read_text()
+
+    assert "Core Settings" in configuration
+    assert "Advanced Runtime Settings" in configuration
+    assert "INTERNAL_BEARER_TOKEN" in configuration
+    assert "QUEUE_ENABLED" in configuration
+
+
+def test_validation_doc_covers_vm_and_in_cluster_paths() -> None:
+    validation = (PROJECT_ROOT / "docs" / "validation.md").read_text()
+
+    assert "smoke_vm_direct.py" in validation
+    assert "smoke_in_cluster.py" in validation
+    assert "Workload Identity" in validation
+    assert "tool calling" in validation.lower()
+
+
 def test_compatibility_doc_mentions_alias_and_raw_chat_model_support() -> None:
     compatibility = (PROJECT_ROOT / "docs" / "compatibility.md").read_text()
 
     assert "alias" in compatibility.lower()
     assert "raw model" in compatibility.lower()
     assert "single-model" in compatibility.lower()
+    assert "examples/curl/tool_calling.sh" in compatibility
+    assert "examples/python/tool_calling.py" in compatibility
+
+
+def test_docs_describe_embeddings_usage_as_approximate() -> None:
+    readme = (PROJECT_ROOT / "README.md").read_text()
+    compatibility = (PROJECT_ROOT / "docs" / "compatibility.md").read_text()
+
+    assert "approximate" in readme.lower()
+    assert "embeddings" in readme.lower()
+    assert "approximate" in compatibility.lower()
+    assert "usage" in compatibility.lower()
 
 
 def test_production_values_example_shows_multi_chat_model_settings() -> None:
@@ -116,3 +167,12 @@ def test_production_values_example_shows_multi_chat_model_settings() -> None:
     assert "vertexChatModel:" in values
     assert "vertexChatModels:" in values
     assert "vertexChatModelAliases:" in values
+
+
+def test_tool_calling_examples_exist_and_are_linked() -> None:
+    readme = (PROJECT_ROOT / "README.md").read_text()
+
+    assert (PROJECT_ROOT / "examples/curl/tool_calling.sh").exists()
+    assert (PROJECT_ROOT / "examples/python/tool_calling.py").exists()
+    assert "examples/curl/tool_calling.sh" in readme
+    assert "examples/python/tool_calling.py" in readme

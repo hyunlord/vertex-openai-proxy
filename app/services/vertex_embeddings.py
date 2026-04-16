@@ -68,6 +68,63 @@ def _normalize_embedding_values(values: list[Any]) -> list[float]:
     return normalized
 
 
+def _estimate_prompt_tokens(texts: list[str]) -> int:
+    # Vertex embedding responses do not currently provide prompt usage, so we expose
+    # a stable split-based estimate rather than claiming an exact tokenizer count.
+    return sum(len(text.split()) for text in texts)
+
+
+async def _embed_many_fail_fast(
+    texts: list[str],
+    model: str,
+    *,
+    concurrency: int,
+) -> tuple[list[list[float]], int]:
+    semaphore = asyncio.Semaphore(concurrency)
+    vectors: list[list[float] | None] = [None] * len(texts)
+    retry_attempts: list[int] = [0] * len(texts)
+
+    async def bounded_embed(index: int, text: str) -> None:
+        async with semaphore:
+            vector, item_retry_attempts = await _embed_one(text, model)
+        vectors[index] = vector
+        retry_attempts[index] = item_retry_attempts
+
+    tasks = [asyncio.create_task(bounded_embed(index, text)) for index, text in enumerate(texts)]
+    pending = set(tasks)
+
+    try:
+        while pending:
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_EXCEPTION)
+
+            first_error: BaseException | None = None
+            for task in done:
+                exc = task.exception()
+                if exc is not None:
+                    first_error = exc
+                    break
+
+            if first_error is not None:
+                for task in pending:
+                    task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+                raise first_error
+    finally:
+        remaining = [task for task in tasks if not task.done()]
+        if remaining:
+            for task in remaining:
+                task.cancel()
+            await asyncio.gather(*remaining, return_exceptions=True)
+
+    if any(vector is None for vector in vectors):
+        raise HTTPException(
+            status_code=502,
+            detail="Vertex embedding fan-out completed without all vectors",
+        )
+
+    return [vector for vector in vectors if vector is not None], sum(retry_attempts)
+
+
 async def create_embedding_response(payload: EmbeddingRequest) -> dict:
     model = payload.resolved_model()
     texts = payload.normalized_input
@@ -93,15 +150,11 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
     timed_out = False
     auth_failure = False
     try:
-        semaphore = asyncio.Semaphore(effective_concurrency)
-
-        async def bounded_embed(text: str) -> tuple[list[float], int]:
-            async with semaphore:
-                return await _embed_one(text, model)
-
-        results = await asyncio.gather(*[bounded_embed(text) for text in texts])
-        vectors = [vector for vector, _ in results]
-        retry_attempts = sum(item_retry_attempts for _, item_retry_attempts in results)
+        vectors, retry_attempts = await _embed_many_fail_fast(
+            texts,
+            model,
+            concurrency=effective_concurrency,
+        )
         success = True
         return {
             "object": "list",
@@ -115,8 +168,8 @@ async def create_embedding_response(payload: EmbeddingRequest) -> dict:
                 for index, vector in enumerate(vectors)
             ],
             "usage": {
-                "prompt_tokens": sum(len(text.split()) for text in texts),
-                "total_tokens": sum(len(text.split()) for text in texts),
+                "prompt_tokens": _estimate_prompt_tokens(texts),
+                "total_tokens": _estimate_prompt_tokens(texts),
             },
         }
     except VertexUpstreamError as exc:

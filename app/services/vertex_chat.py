@@ -11,6 +11,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from app.config import settings
+from app.errors import build_openai_error
 from app.schemas.openai_chat import (
     ChatCompletionChoice,
     ChatCompletionRequest,
@@ -48,11 +49,13 @@ def _normalize_choice(choice: Any, index: int) -> ChatCompletionChoice:
         message_payload = {
             "role": message.get("role") or "assistant",
             "content": message.get("content"),
+            "tool_calls": message.get("tool_calls"),
         }
     else:
         message_payload = {
             "role": "assistant",
             "content": choice.get("content"),
+            "tool_calls": choice.get("tool_calls"),
         }
 
     normalized_choice = {
@@ -73,6 +76,7 @@ def _normalize_stream_choice(choice: Any, index: int) -> ChatCompletionChunkChoi
         delta_payload = {
             "role": delta.get("role"),
             "content": delta.get("content"),
+            "tool_calls": delta.get("tool_calls"),
         }
     else:
         message = choice.get("message")
@@ -80,11 +84,13 @@ def _normalize_stream_choice(choice: Any, index: int) -> ChatCompletionChunkChoi
             delta_payload = {
                 "role": message.get("role") or "assistant",
                 "content": message.get("content"),
+                "tool_calls": message.get("tool_calls"),
             }
         else:
             delta_payload = {
                 "role": "assistant" if index == 0 else None,
                 "content": choice.get("content"),
+                "tool_calls": choice.get("tool_calls"),
             }
 
     normalized_choice = {
@@ -155,12 +161,28 @@ def _parse_stream_payload(line: str) -> str | None:
     return stripped
 
 
+def _stream_error_event(
+    *,
+    status_code: int,
+    message: str,
+    error_type: str | None = None,
+    code: int | str | None = None,
+) -> str:
+    payload = build_openai_error(
+        message=message,
+        status_code=status_code,
+        error_type=error_type,
+        code=code,
+    ).model_dump()
+    return f"event: error\ndata: {json.dumps(payload, separators=(',', ':'))}\n\n"
+
+
 async def create_chat_completion_stream(payload: ChatCompletionRequest) -> AsyncIterator[str]:
     requested_model = payload.requested_model()
     resolved_model = payload.resolved_model()
-    body = payload.model_dump(exclude_none=True)
-    body["model"] = resolved_model
+    body = payload.to_upstream_payload(model=resolved_model)
     saw_done = False
+    emitted_chunks = False
     started_at = perf_counter()
     upstream_status = 200
     retryable_failure = False
@@ -188,19 +210,40 @@ async def create_chat_completion_stream(payload: ChatCompletionRequest) -> Async
                 )
 
             normalized_chunk = normalize_chat_stream_chunk(upstream_chunk, model=resolved_model)
+            emitted_chunks = True
             yield f"data: {json.dumps(normalized_chunk, separators=(',', ':'))}\n\n"
     except VertexUpstreamError as exc:
         upstream_status = exc.status_code
         retryable_failure = is_retryable_upstream_error(exc)
         auth_failure = exc.status_code in {401, 403}
-        raise
+        if emitted_chunks:
+            yield _stream_error_event(status_code=exc.status_code, message=exc.message)
+        else:
+            raise
     except HTTPException as exc:
         upstream_status = exc.status_code
         timed_out = exc.status_code == 504
-        raise
+        if emitted_chunks:
+            yield _stream_error_event(
+                status_code=exc.status_code,
+                message=str(exc.detail),
+            )
+        else:
+            raise
+    except TimeoutError:
+        upstream_status = 504
+        retryable_failure = True
+        timed_out = True
+        if emitted_chunks:
+            yield _stream_error_event(status_code=504, message="Upstream request timed out")
+        else:
+            raise
     except Exception:
         upstream_status = 500
-        raise
+        if emitted_chunks:
+            yield _stream_error_event(status_code=500, message="Internal server error")
+        else:
+            raise
     finally:
         request_latency_ms = round((perf_counter() - started_at) * 1000, 3)
         runtime_mode = runtime_controller.request_finished(
@@ -230,8 +273,7 @@ async def create_chat_completion_stream(payload: ChatCompletionRequest) -> Async
 async def create_chat_completion(payload: ChatCompletionRequest) -> dict:
     requested_model = payload.requested_model()
     resolved_model = payload.resolved_model()
-    body = payload.model_dump(exclude_none=True)
-    body["model"] = resolved_model
+    body = payload.to_upstream_payload(model=resolved_model)
     started_at = perf_counter()
     upstream_status = 200
     retry_attempts = 0

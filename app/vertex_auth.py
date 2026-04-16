@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 import time
 from typing import Any
@@ -15,6 +16,7 @@ METADATA_TOKEN_URL = (
 
 _cached_token: str | None = None
 _cached_token_expiry: float = 0.0
+_cached_token_lock = asyncio.Lock()
 
 
 class VertexAuthError(Exception):
@@ -91,43 +93,48 @@ async def get_vertex_access_token() -> str:
     if _cached_token and now < (_cached_token_expiry - 60):
         return _cached_token
 
-    adc_error: Exception | None = None
-    try:
-        adc_token = _load_adc_token()
-    except Exception as exc:
-        adc_error = exc
-        adc_token = None
-    if adc_token:
-        _cached_token = adc_token
-        _cached_token_expiry = now + 300
-        return _cached_token
+    async with _cached_token_lock:
+        now = time.time()
+        if _cached_token and now < (_cached_token_expiry - 60):
+            return _cached_token
 
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(
-                METADATA_TOKEN_URL,
-                headers={"Metadata-Flavor": "Google"},
+        adc_error: Exception | None = None
+        try:
+            adc_token = await asyncio.to_thread(_load_adc_token)
+        except Exception as exc:
+            adc_error = exc
+            adc_token = None
+        if adc_token:
+            _cached_token = adc_token
+            _cached_token_expiry = now + 300
+            return _cached_token
+
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(
+                    METADATA_TOKEN_URL,
+                    headers={"Metadata-Flavor": "Google"},
+                )
+                response.raise_for_status()
+                payload: dict[str, Any] = response.json()
+        except httpx.HTTPError as exc:
+            details = ""
+            if hasattr(exc, "response") and getattr(exc, "response") is not None:
+                details = getattr(exc.response, "text", "") or str(exc)
+            elif adc_error is not None:
+                details = str(adc_error)
+            else:
+                details = str(exc)
+            message = _build_auth_failure_message(
+                auth_path="adc->metadata",
+                details=details,
             )
-            response.raise_for_status()
-            payload: dict[str, Any] = response.json()
-    except httpx.HTTPError as exc:
-        details = ""
-        if hasattr(exc, "response") and getattr(exc, "response") is not None:
-            details = getattr(exc.response, "text", "") or str(exc)
-        elif adc_error is not None:
-            details = str(adc_error)
-        else:
-            details = str(exc)
-        message = _build_auth_failure_message(
-            auth_path="adc->metadata",
-            details=details,
-        )
-        raise VertexAuthError(
-            message=message,
-            auth_path="adc->metadata",
-            vpc_service_controls_id=_extract_vpc_service_controls_id(details),
-        ) from exc
+            raise VertexAuthError(
+                message=message,
+                auth_path="adc->metadata",
+                vpc_service_controls_id=_extract_vpc_service_controls_id(details),
+            ) from exc
 
-    _cached_token = payload["access_token"]
-    _cached_token_expiry = now + int(payload.get("expires_in", 300))
-    return _cached_token
+        _cached_token = payload["access_token"]
+        _cached_token_expiry = now + int(payload.get("expires_in", 300))
+        return _cached_token

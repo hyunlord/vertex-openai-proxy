@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from harness.checks.protocol import (
     validate_chat_chunk,
     validate_chat_completion,
+    validate_chat_tool_calls,
     validate_embeddings_response,
     validate_openai_error,
 )
@@ -30,6 +31,31 @@ def main() -> None:
         "created": 1710000000,
         "model": "google/gemini-2.5-flash",
         "choices": [{"index": 0, "delta": {"role": "assistant", "content": "ok"}}],
+    }
+    sample_tool_chat = {
+        "id": "chatcmpl-2",
+        "object": "chat.completion",
+        "created": 1710000001,
+        "model": "google/gemini-2.5-flash",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {
+                            "id": "call_weather",
+                            "type": "function",
+                            "function": {
+                                "name": "get_weather",
+                                "arguments": "{\"city\":\"Seoul\"}",
+                            },
+                        }
+                    ],
+                },
+                "finish_reason": "tool_calls",
+            }
+        ],
     }
     sample_embeddings = {
         "object": "list",
@@ -52,6 +78,7 @@ def main() -> None:
                 "ok": all(
                     [
                         validate_chat_completion(sample_chat),
+                        validate_chat_tool_calls(sample_tool_chat),
                         validate_chat_chunk(sample_chunk),
                         validate_embeddings_response(sample_embeddings, expected_count=2),
                         validate_openai_error(sample_error),

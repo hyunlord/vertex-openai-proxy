@@ -35,6 +35,23 @@ def _select_model(models_payload: dict, capability_kind: str, explicit_model: st
     raise ValueError(f"no model found for capability={capability_kind}")
 
 
+def _build_tool_payload(chat_model: str) -> dict:
+    return {
+        "model": chat_model,
+        "messages": [{"role": "user", "content": "What is the weather in Seoul?"}],
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Get the current weather",
+                },
+            }
+        ],
+        "tool_choice": "auto",
+    }
+
+
 def main() -> None:
     if os.getenv("HARNESS_SELFTEST") == "1":
         print(json.dumps({"ok": True, "mode": "vm_direct_selftest"}))
@@ -75,6 +92,18 @@ def main() -> None:
                 "messages": [{"role": "user", "content": "reply with READY only"}],
             },
         )
+        tool_chat = _call(
+            base_url,
+            token,
+            "/v1/chat/completions",
+            _build_tool_payload(chat_model),
+        )
+        tool_stream = _call(
+            base_url,
+            token,
+            "/v1/chat/completions",
+            {**_build_tool_payload(chat_model), "stream": True},
+        )
         embeddings = _call(
             base_url,
             token,
@@ -85,6 +114,7 @@ def main() -> None:
             },
         )
         chat_body = json.loads(chat["body"])
+        tool_chat_body = json.loads(tool_chat["body"])
         embeddings_body = json.loads(embeddings["body"])
         chat_text = chat_body["choices"][0]["message"]["content"]
         embedding_count = len(embeddings_body["data"])
@@ -94,12 +124,19 @@ def main() -> None:
                 health["status"] == 200
                 and models["status"] == 200
                 and chat["status"] == 200
+                and tool_chat["status"] == 200
+                and tool_stream["status"] == 200
                 and embeddings["status"] == 200
+                and tool_chat_body["choices"][0]["message"]["tool_calls"][0]["id"] == "call_weather"
+                and '"tool_calls"' in tool_stream["body"]
+                and "data: [DONE]" in tool_stream["body"]
                 and embedding_count == 3
             ),
             "health_status": health["status"],
             "models_status": models["status"],
             "chat_status": chat["status"],
+            "tool_chat_status": tool_chat["status"],
+            "tool_stream_status": tool_stream["status"],
             "embeddings_status": embeddings["status"],
             "chat_model": chat_model,
             "embedding_model": embedding_model,

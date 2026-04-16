@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+import app.services.vertex_embeddings as vertex_embeddings
 from app.config import settings
 from app.main import app
 from app.runtime.controller import runtime_controller
@@ -189,3 +190,46 @@ async def test_embeddings_fail_after_retry_budget_exhausted(
 
     assert exc_info.value.status_code == 503
     assert mock_vertex_json_request.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_embeddings_cancel_pending_fanout_on_first_failure(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "embedding_max_concurrency", 2)
+
+    started: list[str] = []
+    cancelled: list[str] = []
+    first_wave_started = asyncio.Event()
+    block_event = asyncio.Event()
+
+    async def fake_embed(text: str, model: str) -> tuple[list[float], int]:
+        started.append(text)
+        if len(started) >= 2:
+            first_wave_started.set()
+
+        if text == "a":
+            await first_wave_started.wait()
+            raise VertexUpstreamError(status_code=503, message="temporary unavailable")
+
+        try:
+            await block_event.wait()
+        except asyncio.CancelledError:
+            cancelled.append(text)
+            raise
+
+        return [float(ord(text))], 0
+
+    monkeypatch.setattr(vertex_embeddings, "_embed_one", fake_embed)
+
+    with pytest.raises(VertexUpstreamError) as exc_info:
+        await create_embedding_response(
+            EmbeddingRequest(
+                model="gemini-embedding-2-preview",
+                input=["a", "b", "c", "d"],
+            )
+        )
+
+    assert exc_info.value.status_code == 503
+    assert started[:2] == ["a", "b"]
+    assert "b" in cancelled
+    assert len(started) < 4
+    assert "d" not in started

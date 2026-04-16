@@ -16,6 +16,7 @@ def test_harness_scripts_exist_and_are_executable() -> None:
         "scripts/verify_full.sh",
         "scripts/smoke_chat.py",
         "scripts/smoke_embeddings.py",
+        "scripts/smoke_tool_calling.py",
         "scripts/smoke_vm_direct.py",
         "scripts/smoke_in_cluster.py",
     ]:

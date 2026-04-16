@@ -10,7 +10,7 @@ from app.errors import (
     extract_request_id,
     openai_error_response,
 )
-from app.services.http_client import VertexUpstreamError
+from app.services.http_client import VertexUpstreamError, close_shared_http_client
 from app.vertex_auth import VertexAuthError
 from app.routes.chat import router as chat_router
 from app.routes.embeddings import router as embeddings_router
@@ -24,7 +24,10 @@ from app.utils.request_id import generate_request_id
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     validate_runtime_settings()
-    yield
+    try:
+        yield
+    finally:
+        await close_shared_http_client()
 
 
 app = FastAPI(title="vertex-openai-proxy", lifespan=lifespan)

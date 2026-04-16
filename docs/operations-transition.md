@@ -29,6 +29,8 @@ Move a client application from an existing OpenAI-compatible gateway to `vertex-
    - `python3 scripts/smoke_vm_direct.py`
 3. Re-test in GKE:
    - `python3 scripts/smoke_in_cluster.py`
+   - confirm non-stream tool calling succeeds
+   - confirm streaming tool calling succeeds
 4. Update the client application's external API configuration only after the four endpoints are verified in-cluster
 
 Record every live verification round in [empirical-testing.md](empirical-testing.md) so later tuning decisions can build on prior evidence instead of re-discovering it.

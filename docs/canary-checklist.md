@@ -47,6 +47,8 @@ Success means:
 ## Functional Smoke Checks
 
 - one chat request succeeds
+- one non-stream tool-calling request succeeds
+- one streaming tool-calling request succeeds
 - one embeddings request succeeds
 - one real application path succeeds
 

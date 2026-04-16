@@ -10,6 +10,7 @@ fi
 
 quick_output="$(bash scripts/verify_quick.sh)"
 python3 scripts/check_contracts.py >/tmp/verify_full_contracts.log
+python3 scripts/smoke_tool_calling.py >/tmp/verify_full_tool_calling.log
 
 python3 - <<PY
 import json
@@ -23,6 +24,7 @@ print(
             "checks": [
                 {"name": "quick", "ok": True, "summary": quick_output},
                 {"name": "protocol", "ok": True},
+                {"name": "tool_calling", "ok": True},
             ],
         }
     )

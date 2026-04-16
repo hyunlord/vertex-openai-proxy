@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 
 import httpx
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 
 import app.vertex_auth as vertex_auth
 from app.main import app
 from app.routes import chat as chat_route
-from app.services.http_client import VertexUpstreamError, vertex_json_request
+from app.services import http_client
+from app.services.http_client import VertexUpstreamError, close_shared_http_client, vertex_json_request
 
 
 client = TestClient(app)
@@ -71,16 +74,16 @@ class FakeUpstreamResponse:
 
 
 class FakeUpstreamClient:
+    init_calls = 0
+    close_calls = 0
     last_request = None
 
     def __init__(self, *args, **kwargs):
+        type(self).init_calls += 1
         self.kwargs = kwargs
 
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return None
+    async def aclose(self):
+        type(self).close_calls += 1
 
     async def request(self, method=None, url=None, json=None, headers=None):
         type(self).last_request = SimpleNamespace(
@@ -93,6 +96,13 @@ class FakeUpstreamClient:
             404,
             {"error": {"message": "Publisher Model not found", "status": "NOT_FOUND"}},
         )
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def reset_shared_http_client_state() -> None:
+    await close_shared_http_client()
+    yield
+    await close_shared_http_client()
 
 
 @pytest.mark.asyncio
@@ -108,6 +118,29 @@ async def test_metadata_token_fetch_and_cache_reuse(monkeypatch: pytest.MonkeyPa
 
     first = await vertex_auth.get_vertex_access_token()
     second = await vertex_auth.get_vertex_access_token()
+
+    assert first == "metadata-token"
+    assert second == "metadata-token"
+    assert FakeMetadataClient.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_metadata_token_fetch_is_shared_across_concurrent_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(vertex_auth, "_load_adc_token", lambda: None)
+    monkeypatch.setattr(vertex_auth, "httpx", SimpleNamespace(AsyncClient=FakeMetadataClient))
+    monkeypatch.setattr(vertex_auth.settings, "vertex_access_token", None, raising=False)
+    vertex_auth.reset_vertex_access_token_cache()
+    FakeMetadataClient.calls = 0
+    FakeMetadataClient.response = FakeMetadataResponse(
+        {"access_token": "metadata-token", "expires_in": 120}
+    )
+
+    first, second = await asyncio.gather(
+        vertex_auth.get_vertex_access_token(),
+        vertex_auth.get_vertex_access_token(),
+    )
 
     assert first == "metadata-token"
     assert second == "metadata-token"
@@ -197,6 +230,30 @@ async def test_upstream_http_failure_mapping(monkeypatch: pytest.MonkeyPatch) ->
 
     assert exc_info.value.status_code == 404
     assert exc_info.value.message == "Publisher Model not found"
+
+
+@pytest.mark.asyncio
+async def test_upstream_http_client_is_reused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.services.http_client.httpx", SimpleNamespace(AsyncClient=FakeUpstreamClient))
+
+    async def fake_token() -> str:
+        return "metadata-token"
+
+    FakeUpstreamClient.init_calls = 0
+    FakeUpstreamClient.close_calls = 0
+    monkeypatch.setattr("app.services.http_client.get_vertex_access_token", fake_token)
+
+    for _ in range(2):
+        with pytest.raises(VertexUpstreamError):
+            await vertex_json_request(
+                "POST",
+                "https://example.com",
+                {"model": "google/gemini-2.5-flash", "messages": []},
+            )
+
+    assert FakeUpstreamClient.init_calls == 1
+    await http_client.close_shared_http_client()
+    assert FakeUpstreamClient.close_calls == 1
 
 
 def test_upstream_error_is_normalized_by_app(monkeypatch: pytest.MonkeyPatch) -> None:

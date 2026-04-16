@@ -13,6 +13,8 @@ Supported request fields:
 - `model`
 - `messages`
 - `stream`
+- `tools`
+- `tool_choice`
 
 Chat model behavior:
 - `model` may be omitted, in which case the configured default chat model is used
@@ -26,15 +28,26 @@ Supported response shapes:
 
 Supported behavior:
 - request validation for malformed messages
+- `messages[].content` may be a plain string or an array of OpenAI-style `text` content parts
+- text content parts are flattened into the existing Vertex string-based request shape
+- non-stream tool-calling request passthrough
+- assistant `tool_calls` normalization on non-stream responses
+- `tool` role message passthrough on non-stream requests
+- streaming tool-call chunk passthrough and normalization
+- upstream stream failures emit one SSE `error` event and then terminate with `data: [DONE]`, both before the first chunk and mid-stream
 - request id correlation via `x-request-id`
 - normalized usage passthrough when Vertex provides usage
 - SSE termination with `data: [DONE]`
 
+Example clients:
+- [`examples/curl/tool_calling.sh`](../examples/curl/tool_calling.sh)
+- [`examples/python/tool_calling.py`](../examples/python/tool_calling.py)
+
 Not supported yet:
-- tool calling compatibility
 - Responses API
 - Assistants API
-- audio/image/multimodal normalization beyond upstream passthrough surface
+- image/audio/non-text content parts
+- multimodal normalization beyond upstream passthrough surface
 
 ## Embeddings
 
@@ -55,6 +68,7 @@ Contract guarantees:
 - one upstream embedding call per input item
 - bounded fan-out concurrency using proxy-side limits
 - whole-request failure if any item fails
+- `usage.prompt_tokens` and `usage.total_tokens` are split-based approximate counts, not exact tokenizer results
 - malformed upstream embedding payloads return normalized `502`
 
 Retry behavior:
